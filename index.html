@@ -170,14 +170,42 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
 .logout-btn{font-size:10px;color:var(--text3);cursor:pointer;padding:3px 8px;border:1px solid var(--border2);border-radius:10px;background:none;font-family:inherit;transition:all .15s}
 .logout-btn:hover{color:var(--red);border-color:var(--red)}
 
+
+/* ===== PASSWORD SCREEN ===== */
+.pwd-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%);z-index:99999;display:flex;align-items:center;justify-content:center}
+.pwd-box{background:#1e2235;border:1px solid #2e3350;border-radius:20px;padding:44px 36px;width:340px;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.5)}
+.pwd-logo{font-size:56px;margin-bottom:12px}
+.pwd-title{font-size:22px;font-weight:800;color:#e8eaf2;margin-bottom:6px}
+.pwd-sub{font-size:12px;color:#5c6380;margin-bottom:28px;line-height:1.7}
+.pwd-input{width:100%;padding:13px 16px;background:#0f1117;color:#e8eaf2;border:1.5px solid #2e3350;border-radius:10px;font-size:15px;text-align:center;letter-spacing:3px;font-family:inherit;outline:none;transition:border .2s;margin-bottom:14px}
+.pwd-input:focus{border-color:#5b9cf6}
+.pwd-input::placeholder{letter-spacing:0;color:#3a4060;font-size:13px}
+.pwd-btn{width:100%;padding:13px;background:linear-gradient(135deg,#185FA5,#5b9cf6);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.pwd-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(91,156,246,.4)}
+.pwd-err{font-size:12px;color:#ff5e6b;margin-top:10px;min-height:18px;font-weight:600}
+.pwd-hint{font-size:10px;color:#3a4060;margin-top:16px}
+
 </style>
 </head>
 <body>
+<!-- ===== PASSWORD SCREEN ===== -->
+<div id="pwd-screen" class="pwd-overlay">
+  <div class="pwd-box">
+    <div class="pwd-logo">🔐</div>
+    <div class="pwd-title">ميزانية أحمد جلال</div>
+    <div class="pwd-sub">هذا التطبيق خاص — يرجى إدخال كلمة المرور للمتابعة</div>
+    <input class="pwd-input" type="password" id="pwd-input" placeholder="أدخل كلمة المرور" onkeydown="if(event.key==='Enter')checkPwd()">
+    <button class="pwd-btn" onclick="checkPwd()">دخول</button>
+    <div class="pwd-err" id="pwd-err"></div>
+    <div class="pwd-hint">🔒 محمي بكلمة مرور خاصة</div>
+  </div>
+</div>
+
 <!-- ===== AUTH OVERLAY ===== -->
 <div class="auth-overlay" id="auth-panel">
   <div class="auth-box">
     <div class="auth-logo">💰</div>
-    <div class="auth-title">ميزانيتي 2026</div>
+    <div class="auth-title">ميزانية أحمد جلال</div>
     <div class="auth-sub">سجّل دخولك بحساب Google لحفظ بياناتك في السحابة والوصول إليها من أي جهاز في أي وقت</div>
     <button class="auth-google-btn" id="auth-btn" onclick="if(window.fbLogin){window.fbLogin()}else{document.getElementById('auth-msg').textContent='جاري التحميل، انتظر ثانية...'}">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
@@ -917,6 +945,41 @@ renderSessionList();
 <!-- Bridge script للتعامل مع تأخر تحميل module -->
 <script>
 // هذه دوال وهمية تنتظر تحميل Firebase
+
+// ===== PASSWORD PROTECTION =====
+(function(){
+  const HASH = '7c4a8d09ca3762af61e59520943dc26806ba';
+  // Simple check - stored in sessionStorage so no re-entry per session
+  function hashStr(str) {
+    let hash = 0;
+    for(let i=0;i<str.length;i++){
+      hash = ((hash<<5)-hash)+str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+  window.checkPwd = function() {
+    const val = document.getElementById('pwd-input').value;
+    const err = document.getElementById('pwd-err');
+    if(val === atob('RGFudHlAMTIz')) {
+      sessionStorage.setItem('myz_auth','1');
+      document.getElementById('pwd-screen').style.display='none';
+      err.textContent='';
+    } else {
+      err.textContent='❌ كلمة المرور غير صحيحة';
+      document.getElementById('pwd-input').value='';
+      document.getElementById('pwd-input').focus();
+    }
+  };
+  // Check on load
+  if(sessionStorage.getItem('myz_auth')==='1'){
+    document.addEventListener('DOMContentLoaded',function(){
+      const s = document.getElementById('pwd-screen');
+      if(s) s.style.display='none';
+    });
+  }
+})();
+
 window._fbQueue = [];
 ['fbLogin','fbLogout','fbSaveToCloud'].forEach(fn => {
   window[fn] = function() {
