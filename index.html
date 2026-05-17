@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ميزانيتي الشخصية 2026</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f7f4;--bg2:#ffffff;--bg3:#f0efe9;
+  --text:#1a1a18;--text2:#6b6b66;--text3:#9a9a94;
+  --border:#e2e0d8;--border2:#cccac0;
+  --green:#0F6E56;--green-l:#E1F5EE;--green-d:#085041;
+  --red:#A32D2D;--red-l:#FCEBEB;
+  --blue:#185FA5;--blue-l:#E6F1FB;
+  --amber:#854F0B;--amber-l:#FAEEDA;
+  --radius:10px;--radius-sm:7px;
+}
+body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+.app-shell{display:flex;flex-direction:column;min-height:100vh}
+
+/* TOP NAV */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;position:sticky;top:0;z-index:100;height:52px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;color:var(--text);margin-left:24px;white-space:nowrap}
+.logo i{color:#854F0B;font-size:22px}
+.nav{display:flex;gap:2px;overflow-x:auto;flex:1}
+.nav-btn{display:flex;align-items:center;gap:5px;padding:6px 13px;border:none;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;background:transparent;color:var(--text2);white-space:nowrap;transition:all .15s;font-family:inherit}
+.nav-btn:hover{background:var(--bg3);color:var(--text)}
+.nav-btn.active{background:var(--blue-l);color:var(--blue);font-weight:600}
+.nav-btn i{font-size:15px}
+.topbar-right{display:flex;align-items:center;gap:8px;margin-right:auto;padding-right:0}
+.date-badge{font-size:11px;color:var(--text3);background:var(--bg3);padding:3px 10px;border-radius:20px;border:1px solid var(--border)}
+
+/* MAIN */
+.main{flex:1;padding:20px 24px;max-width:1200px;margin:0 auto;width:100%}
+
+/* PAGES */
+.page{display:none}
+.page.active{display:block}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:700px){.g2,.g3,.g4,.g6{grid-template-columns:1fr 1fr}}
+@media(max-width:460px){.g2,.g3,.g4,.g6{grid-template-columns:1fr}}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.card-h{font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:7px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.card-h i{font-size:16px;color:var(--text3)}
+
+/* KPI */
+.kpi{background:var(--bg3);border-radius:var(--radius-sm);padding:13px 15px;border:1px solid var(--border)}
+.kpi-l{font-size:11px;color:var(--text3);margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.kpi-v{font-size:21px;font-weight:700;color:var(--text);line-height:1.2}
+.kpi-s{font-size:11px;color:var(--text3);margin-top:3px}
+.kpi.pos .kpi-v{color:var(--green)}
+.kpi.neg .kpi-v{color:var(--red)}
+.kpi.warn .kpi-v{color:var(--amber)}
+.kpi.info .kpi-v{color:var(--blue)}
+
+/* PILLS */
+.pill{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.pill-g{background:var(--green-l);color:var(--green-d)}
+.pill-r{background:var(--red-l);color:var(--red)}
+.pill-a{background:var(--amber-l);color:var(--amber)}
+.pill-b{background:var(--blue-l);color:var(--blue)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;border:1px solid}
+.btn-primary{background:var(--blue-l);color:var(--blue);border-color:#a0bde8}
+.btn-primary:hover{background:#cfe0f7}
+.btn-danger{background:var(--red-l);color:var(--red);border-color:#f0b0b0;font-size:12px;padding:5px 10px}
+.btn-secondary{background:transparent;color:var(--text2);border-color:var(--border2)}
+.btn-secondary:hover{background:var(--bg3)}
+.btn-success{background:var(--green-l);color:var(--green-d);border-color:#8ecfbe}
+
+/* FORM */
+.form-row{display:grid;gap:12px;margin-bottom:12px}
+.form-group label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 11px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;background:var(--bg2);color:var(--text);font-family:inherit;transition:border .15s}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--blue)}
+
+/* FILTER BAR */
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px}
+.filter-bar label{font-size:12px;color:var(--text2);font-weight:500}
+.filter-bar select,.filter-bar input[type=text]{padding:5px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12px;background:var(--bg);color:var(--text);font-family:inherit}
+
+/* BAR ROWS */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12px}
+.bar-lbl{min-width:120px;color:var(--text2);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:9px;background:var(--bg3);border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px;transition:width .4s}
+.bar-val{min-width:75px;color:var(--text);font-size:11px;text-align:left}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:var(--bg3);padding:9px 11px;text-align:right;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);font-size:11px}
+.tbl td{padding:8px 11px;border-bottom:1px solid var(--border);color:var(--text);text-align:right}
+.tbl tr:hover td{background:#faf9f5}
+
+/* ALERT BOXES */
+.alert{padding:11px 15px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:9px;display:flex;align-items:flex-start;gap:8px;border:1px solid}
+.alert-r{background:var(--red-l);color:#6b1a1a;border-color:#f0b0b0}
+.alert-a{background:var(--amber-l);color:#4a2a00;border-color:#e8b860}
+.alert-g{background:var(--green-l);color:var(--green-d);border-color:#7ecfb5}
+
+/* MONTH CHIPS */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{padding:5px 13px;border:1px solid var(--border2);border-radius:20px;font-size:12px;cursor:pointer;background:var(--bg2);color:var(--text2);transition:all .15s}
+.chip.active{background:var(--blue-l);color:var(--blue);border-color:#a0bde8;font-weight:600}
+.chip:hover:not(.active){background:var(--bg3)}
+
+/* PROGRESS */
+.prog-bar{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-top:5px}
+.prog-fill{height:100%;border-radius:4px;transition:width .5s}
+
+/* COMPARE GRID */
+.cmp-hdr,.cmp-row{display:grid;gap:6px;padding:6px 4px;border-bottom:1px solid var(--border)}
+.cmp-hdr{font-size:11px;font-weight:600;color:var(--text3)}
+.cmp-row{font-size:12px}
+.cmp-row:hover{background:#faf9f5;border-radius:4px}
+
+/* FORECAST ROW */
+.fc-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.fc-row:last-child{border:none}
+
+/* SECTION HEAD */
+.sec-h{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin:16px 0 8px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);padding-bottom:7px}
+
+/* SLIDER WRAPPER */
+.slider-wrap{display:flex;align-items:center;gap:10px}
+.slider-wrap input[type=range]{flex:1}
+.slider-val{font-size:12px;font-weight:600;color:var(--blue);min-width:40px}
+
+/* SCROLLABLE */
+.scroll-x{overflow-x:auto}
+.scroll-y{overflow-y:auto;max-height:320px}
+
+/* GOAL CARD */
+.goal-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+
+/* PRINT */
+@media print{.topbar{position:static}.nav-btn{display:none}.btn{display:none}}
+
+/* ===== FIREBASE AUTH ===== */
+.auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
+.auth-box{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:38px 32px;width:330px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.auth-logo{font-size:52px;margin-bottom:8px}
+.auth-title{font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px}
+.auth-sub{font-size:12px;color:var(--text3);margin-bottom:24px;line-height:1.7}
+.auth-google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 16px;background:#fff;color:#333;border:1.5px solid #ddd;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.auth-google-btn:hover{box-shadow:0 4px 16px rgba(0,0,0,.15);transform:translateY(-1px)}
+.auth-google-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.auth-google-btn img{width:22px;height:22px}
+#auth-msg{font-size:11px;margin-top:10px;min-height:16px;font-weight:600}
+.auth-skip{font-size:11px;color:var(--text3);margin-top:16px;cursor:pointer;text-decoration:underline;display:block}
+.auth-skip:hover{color:var(--text2)}
+/* User panel in topbar */
+.user-panel{display:none;align-items:center;gap:8px}
+.user-avatar{width:28px;height:28px;border-radius:50%;border:2px solid var(--green);object-fit:cover;display:none}
+.user-name-lbl{font-size:11px;font-weight:600;color:var(--text);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sync-status{font-size:11px;color:var(--text3);white-space:nowrap}
+.cloud-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;background:var(--blue-l);color:var(--blue);border:1.5px solid #90bce8;border-radius:20px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s}
+.cloud-btn:hover{background:#c5dcf5}
+.logout-btn{font-size:10px;color:var(--text3);cursor:pointer;padding:3px 8px;border:1px solid var(--border2);border-radius:10px;background:none;font-family:inherit;transition:all .15s}
+.logout-btn:hover{color:var(--red);border-color:var(--red)}
+
+
+/* ===== PASSWORD SCREEN ===== */
+.pwd-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%);z-index:99999;display:flex;align-items:center;justify-content:center}
+.pwd-box{background:#1e2235;border:1px solid #2e3350;border-radius:20px;padding:44px 36px;width:340px;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.5)}
+.pwd-logo{font-size:56px;margin-bottom:12px}
+.pwd-title{font-size:22px;font-weight:800;color:#e8eaf2;margin-bottom:6px}
+.pwd-sub{font-size:12px;color:#5c6380;margin-bottom:28px;line-height:1.7}
+.pwd-input{width:100%;padding:13px 16px;background:#0f1117;color:#e8eaf2;border:1.5px solid #2e3350;border-radius:10px;font-size:15px;text-align:center;letter-spacing:3px;font-family:inherit;outline:none;transition:border .2s;margin-bottom:14px}
+.pwd-input:focus{border-color:#5b9cf6}
+.pwd-input::placeholder{letter-spacing:0;color:#3a4060;font-size:13px}
+.pwd-btn{width:100%;padding:13px;background:linear-gradient(135deg,#185FA5,#5b9cf6);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.pwd-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(91,156,246,.4)}
+.pwd-err{font-size:12px;color:#ff5e6b;margin-top:10px;min-height:18px;font-weight:600}
+.pwd-hint{font-size:10px;color:#3a4060;margin-top:16px}
+
+</style>
+</head>
+<body>
+<!-- ===== PASSWORD SCREEN ===== -->
+<div id="pwd-screen" class="pwd-overlay">
+  <div class="pwd-box">
+    <div class="pwd-logo">🔐</div>
+    <div class="pwd-title">ميزانية أحمد جلال</div>
+    <div class="pwd-sub">هذا التطبيق خاص — يرجى إدخال كلمة المرور للمتابعة</div>
+    <input class="pwd-input" type="password" id="pwd-input" placeholder="أدخل كلمة المرور" onkeydown="if(event.key==='Enter')checkPwd()">
+    <button class="pwd-btn" onclick="checkPwd()">دخول</button>
+    <div class="pwd-err" id="pwd-err"></div>
+    <div class="pwd-hint">🔒 محمي بكلمة مرور خاصة</div>
+  </div>
+</div>
+
+<!-- ===== AUTH OVERLAY ===== -->
+<div class="auth-overlay" id="auth-panel">
+  <div class="auth-box">
+    <div class="auth-logo">💰</div>
+    <div class="auth-title">ميزانية أحمد جلال</div>
+    <div class="auth-sub">سجّل دخولك بحساب Google لحفظ بياناتك في السحابة والوصول إليها من أي جهاز في أي وقت</div>
+    <button class="auth-google-btn" id="auth-btn" onclick="if(window.fbLogin){window.fbLogin()}else{document.getElementById('auth-msg').textContent='جاري التحميل، انتظر ثانية...'}">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      تسجيل الدخول بـ Google
+    </button>
+    <div id="auth-msg"></div>
+    <span class="auth-skip" onclick="document.getElementById('auth-panel').style.display='none'">تخطي — استخدام محلي فقط</span>
+  </div>
+</div>
+
+<div class="app-shell">
+
+<!-- TOP NAV -->
+<div class="topbar">
+  <div class="logo"><i class="ti ti-report-money"></i> ميزانيتي 2026</div>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="sw('dashboard',this)"><i class="ti ti-layout-dashboard"></i> لوحة التحكم</button>
+    <button class="nav-btn" onclick="sw('monthly',this)"><i class="ti ti-calendar-stats"></i> شهري</button>
+    <button class="nav-btn" onclick="sw('categories',this)"><i class="ti ti-chart-pie"></i> الفئات</button>
+    <button class="nav-btn" onclick="sw('forecast',this)"><i class="ti ti-crystal-ball"></i> توقعات</button>
+    <button class="nav-btn" onclick="sw('goals',this)"><i class="ti ti-target"></i> الأهداف</button>
+    <button class="nav-btn" onclick="sw('alerts',this)"><i class="ti ti-bell"></i> تنبيهات</button>
+    <button class="nav-btn" onclick="sw('compare',this)"><i class="ti ti-arrows-diff"></i> مقارنة</button>
+    <button class="nav-btn" onclick="sw('cashflow',this)"><i class="ti ti-chart-line"></i> التدفق</button>
+    <button class="nav-btn" onclick="sw('entry',this)"><i class="ti ti-plus"></i> إدخال</button>
+    <button class="nav-btn" onclick="sw('transactions',this)"><i class="ti ti-list"></i> السجل</button>
+  </nav>
+  <div class="topbar-right">
+    <!-- User Panel — يظهر بعد تسجيل الدخول -->
+    <div class="user-panel" id="user-panel">
+      <img class="user-avatar" id="user-avatar" src="" alt="">
+      <span class="user-name-lbl" id="user-name"></span>
+      <span class="sync-status" id="sync-status">🔄</span>
+      <button class="cloud-btn" onclick="if(window.fbSaveToCloud)window.fbSaveToCloud()"><i class="ti ti-cloud-upload"></i> حفظ سحابي</button>
+      <button class="logout-btn" onclick="if(window.fbLogout)window.fbLogout()"><i class="ti ti-logout"></i> خروج</button>
+    </div>
+    <!-- زر تسجيل الدخول — يظهر قبل الدخول -->
+    <div id="auth-topbar-btn" style="display:flex;align-items:center">
+      <button class="cloud-btn" onclick="document.getElementById('auth-panel').style.display='flex'"><i class="ti ti-brand-google"></i> تسجيل الدخول</button>
+    </div>
+    <span class="date-badge" id="today-date"></span>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ===== DASHBOARD ===== -->
+<div id="pg-dashboard" class="page active">
+  <div class="filter-bar">
+    <i class="ti ti-filter" style="color:var(--text3)"></i>
+    <label>الشهر:</label>
+    <select id="f-month" onchange="renderAll()">
+      <option value="all">جميع الأشهر</option>
+    </select>
+    <label>الفئة:</label>
+    <select id="f-cat" onchange="renderAll()">
+      <option value="all">جميع الفئات</option>
+    </select>
+    <span id="last-update" style="font-size:11px;color:var(--text3);margin-right:auto"></span>
+  </div>
+  <div class="g4" id="kpi-main"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h"><i class="ti ti-trending-up"></i> الإيرادات مقابل المصروفات</div>
+      <div style="position:relative;height:210px"><canvas id="ch-ie" role="img" aria-label="مقارنة الإيرادات والمصروفات"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><i class="ti ti-chart-donut"></i> توزيع المصروفات</div>
+      <div style="position:relative;height:160px"><canvas id="ch-pie" role="img" aria-label="توزيع المصروفات بالفئة"></canvas></div>
+      <div id="pie-leg" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:11px"></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h"><i class="ti ti-arrows-exchange"></i> صافي الدخل الشهري</div>
+      <div style="position:relative;height:180px"><canvas id="ch-net" role="img" aria-label="صافي الدخل الشهري"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><i class="ti ti-flame"></i> أعلى بنود الصرف</div>
+      <div id="top-exp"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><i class="ti ti-calendar-month"></i> تقدم الأشهر — 2026</div>
+    <div id="month-prog"></div>
+  </div>
+</div>
+
+<!-- ===== MONTHLY ===== -->
+<div id="pg-monthly" class="page">
+  <div class="chips" id="month-chips"></div>
+  <div id="monthly-detail"></div>
+</div>
+
+<!-- ===== CATEGORIES ===== -->
+<div id="pg-categories" class="page">
+  <div class="g4" id="cat-kpis"></div>
+  <div id="cat-breakdown"></div>
+</div>
+
+<!-- ===== FORECAST ===== -->
+<div id="pg-forecast" class="page">
+  <div class="g4" id="fc-kpis"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h"><i class="ti ti-chart-area"></i> توقع الإيرادات</div>
+      <div style="position:relative;height:200px"><canvas id="ch-fc-i" role="img" aria-label="توقع الإيرادات"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><i class="ti ti-chart-area"></i> توقع المصروفات</div>
+      <div style="position:relative;height:200px"><canvas id="ch-fc-e" role="img" aria-label="توقع المصروفات"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><i class="ti ti-adjustments"></i> ضبط معدلات التوقع</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:14px">
+      <div>
+        <label style="font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:6px">نمو الإيرادات %</label>
+        <div class="slider-wrap"><input type="range" id="sl-ig" min="-20" max="50" value="5" step="1" oninput="document.getElementById('v-ig').textContent=this.value+'%';renderForecast()"><span class="slider-val" id="v-ig">5%</span></div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:6px">نمو المصروفات %</label>
+        <div class="slider-wrap"><input type="range" id="sl-eg" min="-20" max="50" value="3" step="1" oninput="document.getElementById('v-eg').textContent=this.value+'%';renderForecast()"><span class="slider-val" id="v-eg">3%</span></div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:6px">سعر الصرف المتوقع</label>
+        <div class="slider-wrap"><input type="range" id="sl-rf" min="12" max="20" value="14" step="0.5" oninput="document.getElementById('v-rf').textContent=this.value;renderForecast()"><span class="slider-val" id="v-rf">14</span></div>
+      </div>
+    </div>
+    <div class="scroll-x" id="fc-table"></div>
+  </div>
+</div>
+
+<!-- ===== GOALS ===== -->
+<div id="pg-goals" class="page">
+  <div class="card">
+    <div class="card-h"><i class="ti ti-target"></i> إضافة هدف مالي جديد</div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="form-group"><label>اسم الهدف</label><input id="g-name" placeholder="مثال: صندوق طوارئ"></div>
+      <div class="form-group"><label>المبلغ المستهدف (ر.س)</label><input type="number" id="g-target" placeholder="5000"></div>
+      <div class="form-group"><label>المحقق حالياً (ر.س)</label><input type="number" id="g-current" placeholder="0"></div>
+    </div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="form-group"><label>الفئة</label>
+        <select id="g-cat"><option>ادخار</option><option>سداد ديون</option><option>استثمار</option><option>مشتريات</option><option>طوارئ</option></select></div>
+      <div class="form-group"><label>الأولوية</label>
+        <select id="g-priority"><option>عالية</option><option>متوسطة</option><option>منخفضة</option></select></div>
+      <div class="form-group"><label>الموعد النهائي</label><input type="month" id="g-due" value="2026-12"></div>
+    </div>
+    <button class="btn btn-primary" onclick="addGoal()"><i class="ti ti-plus"></i> إضافة الهدف</button>
+  </div>
+  <div id="goals-list"></div>
+</div>
+
+<!-- ===== ALERTS ===== -->
+<div id="pg-alerts" class="page">
+  <div id="alerts-list"></div>
+  <div class="card">
+    <div class="card-h"><i class="ti ti-settings"></i> إعدادات التنبيهات</div>
+    <div class="g2">
+      <div>
+        <label style="font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:6px">حد تحذير المصروفات من الإيرادات %</label>
+        <div class="slider-wrap"><input type="range" id="sl-el" min="50" max="100" value="80" step="5" oninput="document.getElementById('v-el').textContent=this.value+'%';renderAlerts()"><span class="slider-val" id="v-el">80%</span></div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:6px">أدنى صافي ادخار شهري (ر.س)</label>
+        <div class="slider-wrap"><input type="range" id="sl-sm" min="0" max="2000" value="200" step="50" oninput="document.getElementById('v-sm').textContent=this.value;renderAlerts()"><span class="slider-val" id="v-sm">200</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== COMPARE ===== -->
+<div id="pg-compare" class="page">
+  <div class="card">
+    <div class="card-h"><i class="ti ti-arrows-diff"></i> مقارنة شهر بشهر</div>
+    <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <div class="form-group"><label>الشهر الأول</label><select id="cmp-m1" onchange="renderCompare()" style="width:auto;padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text)">
+        <option>يناير</option><option>فبراير</option><option>مارس</option><option>ابريل</option><option selected>مايو</option></select></div>
+      <div class="form-group"><label>الشهر الثاني</label><select id="cmp-m2" onchange="renderCompare()" style="width:auto;padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;background:var(--bg);color:var(--text)">
+        <option>يناير</option><option selected>فبراير</option><option>مارس</option><option>ابريل</option><option>مايو</option></select></div>
+    </div>
+    <div class="g4" id="cmp-kpis" style="margin-bottom:14px"></div>
+    <div class="scroll-x" id="cmp-detail"></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><i class="ti ti-chart-bar"></i> مقارنة بصرية</div>
+    <div style="position:relative;height:220px"><canvas id="ch-cmp" role="img" aria-label="مقارنة الشهرين بصرياً"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== CASH FLOW ===== -->
+<div id="pg-cashflow" class="page">
+  <div class="card">
+    <div class="card-h"><i class="ti ti-chart-line"></i> التدفق النقدي التراكمي 2026</div>
+    <div style="position:relative;height:240px"><canvas id="ch-cf" role="img" aria-label="التدفق النقدي التراكمي"></canvas></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-h"><i class="ti ti-receipt-2"></i> ملخص التدفق الشهري</div>
+      <div id="cf-monthly"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><i class="ti ti-coin"></i> المراكز المالية</div>
+      <div id="cf-positions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ENTRY ===== -->
+<div id="pg-entry" class="page">
+  <div class="card">
+    <div class="card-h"><i class="ti ti-plus-circle"></i> إضافة عملية مالية جديدة</div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="form-group"><label>الشهر</label>
+        <select id="e-month">
+          <option>يناير</option><option>فبراير</option><option>مارس</option><option>ابريل</option><option>مايو</option><option>يونيو</option><option>يوليو</option><option>اغسطس</option><option>سبتمبر</option><option>اكتوبر</option><option>نوفمبر</option><option>ديسمبر</option>
+        </select></div>
+      <div class="form-group"><label>الفئة</label>
+        <select id="e-cat">
+          <option>ايرادات شهرية</option><option>التزامات شهرية</option><option>مصاريف شخصية</option><option>مدخرات</option><option>أخرى</option>
+        </select></div>
+      <div class="form-group"><label>البيان / الوصف</label><input id="e-desc" placeholder="مثال: راتب، إيجار..."></div>
+    </div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="form-group"><label>القيمة بالريال السعودي</label><input type="number" id="e-sar" placeholder="0.00" step="0.01" oninput="calcEGP()"></div>
+      <div class="form-group"><label>سعر الصرف (ريال / جنيه)</label><input type="number" id="e-rate" value="14" step="0.01" oninput="calcEGP()"></div>
+      <div class="form-group"><label>القيمة بالجنيه المصري (تلقائي)</label><input type="number" id="e-egp" placeholder="محسوبة تلقائياً" step="0.01" oninput="calcSAR()"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-primary" onclick="addEntry()"><i class="ti ti-check"></i> إضافة العملية</button>
+      <button class="btn btn-secondary" onclick="clearForm()">مسح</button>
+      <span id="entry-msg" style="font-size:12px;color:var(--green);font-weight:500"></span>
+    </div>
+  </div>
+
+  <div class="sec-h"><i class="ti ti-table"></i> العمليات المضافة في هذه الجلسة</div>
+  <div id="session-list" class="scroll-x"></div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-h"><i class="ti ti-database-import"></i> استيراد دفعي (CSV)</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:8px">صيغة كل سطر: السنة، الشهر، البيان، التصنيف، القيمة_ريال، سعر_الصرف، القيمة_جنيه</p>
+    <textarea id="bulk-txt" rows="4" style="width:100%;padding:8px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12px;font-family:monospace;background:var(--bg);color:var(--text)" placeholder="2026,يونيو,راتب,ايرادات شهرية,2500,14,35000"></textarea>
+    <button class="btn btn-success" style="margin-top:8px" onclick="importBulk()"><i class="ti ti-upload"></i> استيراد</button>
+  </div>
+</div>
+
+<!-- ===== TRANSACTIONS ===== -->
+<div id="pg-transactions" class="page">
+  <div class="filter-bar">
+    <label>الشهر:</label>
+    <select id="tx-month" onchange="renderTx()"><option value="all">جميع الأشهر</option></select>
+    <label>الفئة:</label>
+    <select id="tx-cat" onchange="renderTx()"><option value="all">جميع الفئات</option></select>
+    <input type="text" id="tx-q" placeholder="بحث..." oninput="renderTx()" style="width:160px">
+    <span id="tx-count" style="font-size:11px;color:var(--text3);margin-right:auto"></span>
+    <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px" onclick="exportCSV()"><i class="ti ti-download"></i> تصدير CSV</button>
+  </div>
+  <div class="scroll-x">
+    <table class="tbl" id="tx-tbl">
+      <thead><tr><th>الشهر</th><th>الفئة</th><th>البيان</th><th>قيمة (ر.س)</th><th>سعر الصرف</th><th>قيمة (ج.م)</th><th>#</th></tr></thead>
+      <tbody id="tx-body"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- end main -->
+</div><!-- end app-shell -->
+
+<script>
+// =================== DATA ===================
+const MONTHS = ['يناير','فبراير','مارس','ابريل','مايو','يونيو','يوليو','اغسطس','سبتمبر','اكتوبر','نوفمبر','ديسمبر'];
+const CAT_C = {'ايرادات شهرية':'#1D9E75','التزامات شهرية':'#E24B4A','مصاريف شخصية':'#BA7517','مدخرات':'#378ADD','أخرى':'#7F77DD'};
+const DONE = ['يناير','فبراير','مارس','ابريل','مايو'];
+
+let DATA = [
+  {y:2026,m:'يناير',d:'قسط تساهيل',c:'التزامات شهرية',sar:532.16,r:12.75,egp:6785},
+  {y:2026,m:'يناير',d:'قسط تنمية',c:'التزامات شهرية',sar:95.69,r:12.75,egp:1220},
+  {y:2026,m:'يناير',d:'ايجار شقتي',c:'التزامات شهرية',sar:180.39,r:12.75,egp:2300},
+  {y:2026,m:'يناير',d:'مصاريف عيالي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'يناير',d:'امي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'يناير',d:'فاطمة',c:'التزامات شهرية',sar:39.22,r:12.75,egp:500},
+  {y:2026,m:'يناير',d:'اشرف حورس',c:'التزامات شهرية',sar:376.47,r:12.75,egp:4800},
+  {y:2026,m:'يناير',d:'راتب',c:'ايرادات شهرية',sar:1000,r:12.75,egp:12750},
+  {y:2026,m:'يناير',d:'ابو زياد',c:'ايرادات شهرية',sar:200,r:12.75,egp:2550},
+  {y:2026,m:'يناير',d:'مدخرات',c:'ايرادات شهرية',sar:300,r:12.75,egp:3825},
+  {y:2026,m:'يناير',d:'اخري',c:'ايرادات شهرية',sar:250,r:12.75,egp:3187.5},
+  {y:2026,m:'يناير',d:'باقة سوا فليكس',c:'مصاريف شخصية',sar:115,r:12.75,egp:1466.25},
+  {y:2026,m:'يناير',d:'اكل',c:'مصاريف شخصية',sar:375,r:12.75,egp:4781.25},
+  {y:2026,m:'يناير',d:'سداد تابي',c:'مصاريف شخصية',sar:300,r:12.75,egp:3825},
+  {y:2026,m:'يناير',d:'تركيب طبق',c:'مصاريف شخصية',sar:150,r:12.75,egp:1912.5},
+  {y:2026,m:'فبراير',d:'قسط تساهيل',c:'التزامات شهرية',sar:535.69,r:12.75,egp:6830},
+  {y:2026,m:'فبراير',d:'قسط تنمية',c:'التزامات شهرية',sar:95.69,r:12.75,egp:1220},
+  {y:2026,m:'فبراير',d:'ايجار شقتي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'فبراير',d:'مصاريف عيالي',c:'التزامات شهرية',sar:627.45,r:12.75,egp:8000},
+  {y:2026,m:'فبراير',d:'امي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'فبراير',d:'قسط عبدالله',c:'التزامات شهرية',sar:177.65,r:12.75,egp:2265},
+  {y:2026,m:'فبراير',d:'اشرف حورس',c:'التزامات شهرية',sar:78.43,r:12.75,egp:1000},
+  {y:2026,m:'فبراير',d:'اخري',c:'ايرادات شهرية',sar:700,r:13.95,egp:9765},
+  {y:2026,m:'فبراير',d:'عبدالله القحيمان',c:'ايرادات شهرية',sar:200,r:13.95,egp:2790},
+  {y:2026,m:'فبراير',d:'باقة النت',c:'مصاريف شخصية',sar:200,r:13.95,egp:2790},
+  {y:2026,m:'فبراير',d:'اكل ومصاريف اخري',c:'مصاريف شخصية',sar:600,r:13.95,egp:8370},
+  {y:2026,m:'مارس',d:'قسط تساهيل',c:'التزامات شهرية',sar:535.69,r:12.75,egp:6830},
+  {y:2026,m:'مارس',d:'قسط تنمية',c:'التزامات شهرية',sar:95.69,r:12.75,egp:1220},
+  {y:2026,m:'مارس',d:'ايجار شقتي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'مارس',d:'مصاريف عيالي',c:'التزامات شهرية',sar:784.31,r:12.75,egp:10000},
+  {y:2026,m:'مارس',d:'امي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'مارس',d:'عبير',c:'التزامات شهرية',sar:39.22,r:12.75,egp:500},
+  {y:2026,m:'مارس',d:'قسط عبدالله',c:'التزامات شهرية',sar:177.65,r:12.75,egp:2265},
+  {y:2026,m:'مارس',d:'الجمعية',c:'التزامات شهرية',sar:784.31,r:12.75,egp:10000},
+  {y:2026,m:'مارس',d:'اشرف حورس',c:'التزامات شهرية',sar:78.43,r:12.75,egp:1000},
+  {y:2026,m:'مارس',d:'احمد محمد',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'مارس',d:'عماد',c:'التزامات شهرية',sar:39.22,r:12.75,egp:500},
+  {y:2026,m:'مارس',d:'البنات',c:'التزامات شهرية',sar:39.22,r:12.75,egp:500},
+  {y:2026,m:'مارس',d:'اخوات اسماء',c:'التزامات شهرية',sar:39.22,r:12.75,egp:500},
+  {y:2026,m:'مارس',d:'راتب',c:'ايرادات شهرية',sar:2500,r:14,egp:35000},
+  {y:2026,m:'مارس',d:'ايجار 1',c:'ايرادات شهرية',sar:250,r:14,egp:3500},
+  {y:2026,m:'مارس',d:'ايجار 2',c:'ايرادات شهرية',sar:200,r:14,egp:2800},
+  {y:2026,m:'مارس',d:'ايجار 3',c:'ايرادات شهرية',sar:400,r:14,egp:5600},
+  {y:2026,m:'مارس',d:'باقة النت',c:'مصاريف شخصية',sar:115,r:14,egp:1610},
+  {y:2026,m:'مارس',d:'اكل ومصاريف اخري',c:'مصاريف شخصية',sar:400,r:14,egp:5600},
+  {y:2026,m:'مارس',d:'واي فاي',c:'مصاريف شخصية',sar:35,r:14,egp:490},
+  {y:2026,m:'مارس',d:'ابو رامي كفيلي',c:'مصاريف شخصية',sar:100,r:14,egp:1400},
+  {y:2026,m:'ابريل',d:'قسط تساهيل',c:'التزامات شهرية',sar:532.16,r:12.75,egp:6785},
+  {y:2026,m:'ابريل',d:'قسط عبدالله',c:'التزامات شهرية',sar:177.65,r:12.75,egp:2265},
+  {y:2026,m:'ابريل',d:'ايجار شقتي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'ابريل',d:'مصاريف عيالي',c:'التزامات شهرية',sar:1960.78,r:12.75,egp:25000},
+  {y:2026,m:'ابريل',d:'امي',c:'التزامات شهرية',sar:549.02,r:12.75,egp:7000},
+  {y:2026,m:'ابريل',d:'اشرف حورس',c:'التزامات شهرية',sar:78.43,r:12.75,egp:1000},
+  {y:2026,m:'ابريل',d:'تنمية اخر قسط',c:'التزامات شهرية',sar:101.96,r:12.75,egp:1300},
+  {y:2026,m:'ابريل',d:'اخري',c:'ايرادات شهرية',sar:500,r:14,egp:7000},
+  {y:2026,m:'ابريل',d:'راتب',c:'ايرادات شهرية',sar:2500,r:14,egp:35000},
+  {y:2026,m:'ابريل',d:'ايجار 1',c:'ايرادات شهرية',sar:250,r:14,egp:3500},
+  {y:2026,m:'ابريل',d:'ايجار 2',c:'ايرادات شهرية',sar:200,r:14,egp:2800},
+  {y:2026,m:'ابريل',d:'ايجار 3',c:'ايرادات شهرية',sar:400,r:14,egp:5600},
+  {y:2026,m:'ابريل',d:'اخري 2',c:'ايرادات شهرية',sar:500,r:14,egp:7000},
+  {y:2026,m:'ابريل',d:'تليفون وانترنت',c:'مصاريف شخصية',sar:75,r:14,egp:1050},
+  {y:2026,m:'ابريل',d:'مصاريف اكل',c:'مصاريف شخصية',sar:500,r:14,egp:7000},
+  {y:2026,m:'ابريل',d:'محمد علي',c:'مصاريف شخصية',sar:100,r:14,egp:1400},
+  {y:2026,m:'ابريل',d:'ملابس شخصية',c:'مصاريف شخصية',sar:310,r:14,egp:4340},
+  {y:2026,m:'ابريل',d:'تليفون وانترنت 2',c:'مصاريف شخصية',sar:100,r:14,egp:1400},
+  {y:2026,m:'ابريل',d:'مواصلات',c:'مصاريف شخصية',sar:100,r:14,egp:1400},
+  {y:2026,m:'مايو',d:'قسط تساهيل',c:'التزامات شهرية',sar:532.16,r:12.75,egp:6785},
+  {y:2026,m:'مايو',d:'قسط عبدالله',c:'التزامات شهرية',sar:177.65,r:12.75,egp:2265},
+  {y:2026,m:'مايو',d:'ايجار شقتي',c:'التزامات شهرية',sar:235.29,r:12.75,egp:3000},
+  {y:2026,m:'مايو',d:'مصاريف عيالي',c:'التزامات شهرية',sar:784.31,r:12.75,egp:10000},
+  {y:2026,m:'مايو',d:'امي',c:'التزامات شهرية',sar:274.51,r:12.75,egp:3500},
+  {y:2026,m:'مايو',d:'اشرف حورس',c:'التزامات شهرية',sar:78.43,r:12.75,egp:1000},
+  {y:2026,m:'مايو',d:'عماد رفعت',c:'التزامات شهرية',sar:78.43,r:12.75,egp:1000},
+  {y:2026,m:'مايو',d:'رخام العتب',c:'التزامات شهرية',sar:666.67,r:12.75,egp:8500},
+  {y:2026,m:'مايو',d:'راتب شهر فبراير',c:'ايرادات شهرية',sar:2500,r:14,egp:35000},
+  {y:2026,m:'مايو',d:'عبدالله القحيمان',c:'ايرادات شهرية',sar:220,r:14,egp:3080},
+  {y:2026,m:'مايو',d:'ابو زياد',c:'ايرادات شهرية',sar:200,r:14,egp:2800},
+  {y:2026,m:'مايو',d:'ايجار',c:'ايرادات شهرية',sar:150,r:14,egp:2100},
+  {y:2026,m:'مايو',d:'اخري 1',c:'ايرادات شهرية',sar:620,r:14,egp:8680},
+  {y:2026,m:'مايو',d:'ابو يزيد',c:'ايرادات شهرية',sar:50,r:14,egp:700},
+  {y:2026,m:'مايو',d:'اخري 2',c:'ايرادات شهرية',sar:1600,r:14,egp:22400},
+  {y:2026,m:'مايو',d:'من شهر سابق',c:'ايرادات شهرية',sar:1250,r:14,egp:17500},
+  {y:2026,m:'مايو',d:'مصاريف اكل',c:'مصاريف شخصية',sar:400,r:14,egp:5600},
+  {y:2026,m:'مايو',d:'سلفة رائد',c:'مصاريف شخصية',sar:150,r:14,egp:2100},
+];
+
+let goals = [
+  {name:'صندوق طوارئ',target:5000,current:1200,cat:'طوارئ',priority:'عالية',due:'2026-12'},
+  {name:'سداد تساهيل',target:6000,current:2660,cat:'سداد ديون',priority:'عالية',due:'2026-06'},
+  {name:'توفير رحلة',target:3000,current:500,cat:'مشتريات',priority:'منخفضة',due:'2026-12'},
+];
+let sessionEntries = [];
+const charts = {};
+
+// =================== HELPERS ===================
+const fmt = n => Math.round(n).toLocaleString('ar-SA');
+const fmtSAR = n => fmt(n) + ' ر.س';
+const fmtEGP = n => fmt(n) + ' ج.م';
+
+function getMS(m) {
+  const rows = DATA.filter(r => r.m === m);
+  const inc = rows.filter(r => r.c === 'ايرادات شهرية').reduce((s,r)=>s+r.sar,0);
+  const exp = rows.filter(r => r.c !== 'ايرادات شهرية').reduce((s,r)=>s+r.sar,0);
+  return {inc, exp, net: inc-exp, rows};
+}
+
+function getFiltered() {
+  const m = document.getElementById('f-month').value;
+  const c = document.getElementById('f-cat').value;
+  return DATA.filter(r => (m==='all'||r.m===m) && (c==='all'||r.c===c));
+}
+
+function initFilters() {
+  const months = [...new Set(DATA.map(r=>r.m))].sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b));
+  const cats = [...new Set(DATA.map(r=>r.c))];
+  ['f-month','tx-month'].forEach(id => {
+    const s = document.getElementById(id); if(!s) return;
+    const cur = s.value;
+    while(s.options.length > 1) s.remove(1);
+    months.forEach(m => { const o = document.createElement('option'); o.value=m; o.text=m; s.add(o); });
+    if(cur) s.value = cur;
+  });
+  ['f-cat','tx-cat'].forEach(id => {
+    const s = document.getElementById(id); if(!s) return;
+    const cur = s.value;
+    while(s.options.length > 1) s.remove(1);
+    cats.forEach(c => { const o = document.createElement('option'); o.value=c; o.text=c; s.add(o); });
+    if(cur) s.value = cur;
+  });
+  document.getElementById('last-update').textContent = 'آخر تحديث: ' + new Date().toLocaleDateString('ar-SA');
+}
+
+// =================== NAVIGATION ===================
+function sw(pg, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('pg-'+pg).classList.add('active');
+  btn.classList.add('active');
+  const renders = {monthly:renderMonthly,categories:renderCategories,forecast:renderForecast,goals:renderGoals,alerts:renderAlerts,compare:renderCompare,cashflow:renderCashflow,transactions:renderTx};
+  if(renders[pg]) renders[pg]();
+}
+
+// =================== DASHBOARD ===================
+function renderKPIs() {
+  const f = getFiltered();
+  let inc=0,exp=0;
+  f.forEach(r => { if(r.c==='ايرادات شهرية') inc+=r.sar; else exp+=r.sar; });
+  const net = inc-exp;
+  const savR = inc>0 ? (net/inc*100) : 0;
+  const months = new Set(f.map(r=>r.m));
+  const avgI = months.size > 0 ? inc/months.size : 0;
+  document.getElementById('kpi-main').innerHTML = `
+    <div class="kpi pos"><div class="kpi-l"><i class="ti ti-trending-up" style="font-size:13px"></i> إجمالي الإيرادات</div><div class="kpi-v">${fmtSAR(inc)}</div><div class="kpi-s">${fmtEGP(f.filter(r=>r.c==='ايرادات شهرية').reduce((s,r)=>s+r.egp,0))}</div></div>
+    <div class="kpi neg"><div class="kpi-l"><i class="ti ti-trending-down" style="font-size:13px"></i> إجمالي المصروفات</div><div class="kpi-v">${fmtSAR(exp)}</div><div class="kpi-s">${fmtEGP(f.filter(r=>r.c!=='ايرادات شهرية').reduce((s,r)=>s+r.egp,0))}</div></div>
+    <div class="kpi ${net>=0?'pos':'neg'}"><div class="kpi-l"><i class="ti ti-scale" style="font-size:13px"></i> صافي الدخل</div><div class="kpi-v">${fmtSAR(net)}</div><div class="kpi-s">${fmtEGP(Math.round(net*14))}</div></div>
+    <div class="kpi ${savR>=20?'pos':savR>=0?'warn':'neg'}"><div class="kpi-l"><i class="ti ti-piggy-bank" style="font-size:13px"></i> معدل الادخار</div><div class="kpi-v">${savR.toFixed(1)}%</div><div class="kpi-s">متوسط: ${fmtSAR(avgI)}/شهر</div></div>
+  `;
+}
+
+function renderIEChart() {
+  const activeM = MONTHS.filter(m => DATA.some(r => r.m===m));
+  const incD = activeM.map(m => Math.round(getMS(m).inc));
+  const expD = activeM.map(m => Math.round(getMS(m).exp));
+  if(charts.ie) charts.ie.destroy();
+  const ctx = document.getElementById('ch-ie');
+  charts.ie = new Chart(ctx, {type:'bar',data:{labels:activeM,datasets:[
+    {label:'إيرادات',data:incD,backgroundColor:'#1D9E75',borderRadius:4},
+    {label:'مصروفات',data:expD,backgroundColor:'#E24B4A',borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},autoSkip:false,maxRotation:40}},y:{ticks:{font:{size:10},callback:v=>fmt(v)}}}}});
+}
+
+function renderPie() {
+  const f = getFiltered().filter(r => r.c !== 'ايرادات شهرية');
+  const cats = {}; f.forEach(r => { cats[r.c]=(cats[r.c]||0)+r.sar; });
+  const labels = Object.keys(cats), vals = Object.values(cats).map(v=>Math.round(v));
+  const colors = labels.map(l => CAT_C[l]||'#888');
+  if(charts.pie) charts.pie.destroy();
+  charts.pie = new Chart(document.getElementById('ch-pie'), {type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+  const total = vals.reduce((s,v)=>s+v,0);
+  document.getElementById('pie-leg').innerHTML = labels.map((l,i) => `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:${colors[i]};display:inline-block"></span>${l}: ${total>0?((vals[i]/total)*100).toFixed(0):0}%</span>`).join('');
+}
+
+function renderNetChart() {
+  const activeM = MONTHS.filter(m => DATA.some(r => r.m===m));
+  const netD = activeM.map(m => Math.round(getMS(m).net));
+  if(charts.net) charts.net.destroy();
+  charts.net = new Chart(document.getElementById('ch-net'), {type:'bar',data:{labels:activeM,datasets:[{data:netD,backgroundColor:netD.map(v=>v>=0?'#1D9E75':'#E24B4A'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},autoSkip:false,maxRotation:40}},y:{ticks:{font:{size:10},callback:v=>fmt(v)}}}}});
+}
+
+function renderTopExp() {
+  const f = getFiltered().filter(r => r.c !== 'ايرادات شهرية');
+  const byItem = {}; f.forEach(r => { byItem[r.d]=(byItem[r.d]||0)+r.sar; });
+  const sorted = Object.entries(byItem).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const max = sorted[0] ? sorted[0][1] : 1;
+  document.getElementById('top-exp').innerHTML = sorted.map(([d,v]) => `<div class="bar-row"><div class="bar-lbl">${d}</div><div class="bar-track"><div class="bar-fill" style="width:${(v/max*100).toFixed(0)}%;background:#E24B4A"></div></div><div class="bar-val">${fmtSAR(v)}</div></div>`).join('');
+}
+
+function renderMonthProg() {
+  const done = MONTHS.filter(m => DATA.some(r=>r.m===m)).length;
+  document.getElementById('month-prog').innerHTML = `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      ${MONTHS.map(m => {
+        const has = DATA.some(r=>r.m===m);
+        const s = has ? getMS(m) : null;
+        return `<div style="padding:7px 11px;border:1px solid ${has?(s.net>=0?'#7ecfb5':'#f0b0b0'):' var(--border)'};border-radius:var(--radius-sm);font-size:12px;background:${has?(s.net>=0?'#E1F5EE':'#FCEBEB'):'var(--bg3)'};color:${has?(s.net>=0?'#085041':'#6b1a1a'):'var(--text3)'}">
+          <div style="font-weight:600">${m}</div>${has?`<div style="font-size:10px;margin-top:2px">${s.net>=0?'+':''}${fmt(Math.round(s.net))}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--text3)">${done} من 12 شهراً مكتملة</div>
+    <div class="prog-bar"><div class="prog-fill" style="width:${Math.round(done/12*100)}%;background:#1D9E75"></div></div>
+  `;
+}
+
+function renderAll() {
+  renderKPIs(); renderIEChart(); renderPie(); renderNetChart(); renderTopExp(); renderMonthProg();
+}
+
+// =================== MONTHLY ===================
+function renderMonthly() {
+  const activeM = MONTHS.filter(m => DATA.some(r=>r.m===m));
+  document.getElementById('month-chips').innerHTML = activeM.map((m,i) => `<span class="chip ${i===0?'active':''}" onclick="selectM(this,'${m}')">${m}</span>`).join('');
+  if(activeM.length) showMonthDetail(activeM[0]);
+}
+function selectM(el, m) {
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  showMonthDetail(m);
+}
+function showMonthDetail(m) {
+  const {inc,exp,net,rows} = getMS(m);
+  const cats = {}; rows.filter(r=>r.c!=='ايرادات شهرية').forEach(r=>{cats[r.c]=(cats[r.c]||0)+r.sar;});
+  document.getElementById('monthly-detail').innerHTML = `
+    <div class="g4">
+      <div class="kpi pos"><div class="kpi-l">إيرادات ${m}</div><div class="kpi-v">${fmtSAR(inc)}</div><div class="kpi-s">${fmtEGP(rows.filter(r=>r.c==='ايرادات شهرية').reduce((s,r)=>s+r.egp,0))}</div></div>
+      <div class="kpi neg"><div class="kpi-l">مصروفات ${m}</div><div class="kpi-v">${fmtSAR(exp)}</div><div class="kpi-s">${fmtEGP(rows.filter(r=>r.c!=='ايرادات شهرية').reduce((s,r)=>s+r.egp,0))}</div></div>
+      <div class="kpi ${net>=0?'pos':'neg'}"><div class="kpi-l">صافي ${m}</div><div class="kpi-v">${fmtSAR(net)}</div></div>
+      <div class="kpi info"><div class="kpi-l">عدد العمليات</div><div class="kpi-v">${rows.length}</div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-h"><i class="ti ti-receipt"></i> تفصيل بالفئة</div>
+        ${Object.entries(cats).map(([c,v])=>`<div class="bar-row"><div class="bar-lbl">${c}</div><div class="bar-track"><div class="bar-fill" style="width:${exp>0?(v/exp*100).toFixed(0):0}%;background:${CAT_C[c]||'#888'}"></div></div><div class="bar-val">${fmtSAR(v)}</div></div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-h"><i class="ti ti-list-details"></i> جميع العمليات</div>
+        <div class="scroll-y">
+          <table class="tbl" style="font-size:11px">
+            <thead><tr><th>الفئة</th><th>البيان</th><th>ر.س</th></tr></thead>
+            <tbody>${rows.map(r=>`<tr><td><span style="background:${CAT_C[r.c]+'22'};color:${CAT_C[r.c]};padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600">${r.c}</span></td><td>${r.d}</td><td style="color:${r.c==='ايرادات شهرية'?'#1D9E75':'#A32D2D'};font-weight:600">${r.c==='ايرادات شهرية'?'+':''}${fmt(r.sar)}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// =================== CATEGORIES ===================
+function renderCategories() {
+  const cats = [...new Set(DATA.map(r=>r.c))];
+  const catData = cats.map(c => { const rows=DATA.filter(r=>r.c===c); const total=rows.reduce((s,r)=>s+r.sar,0); const items={}; rows.forEach(r=>{items[r.d]=(items[r.d]||0)+r.sar}); return{c,total,items,count:rows.length}; }).sort((a,b)=>b.total-a.total);
+  const totalAll = catData.reduce((s,c)=>s+c.total,0);
+  document.getElementById('cat-kpis').innerHTML = catData.map(cd=>`<div class="kpi"><div class="kpi-l" style="color:${CAT_C[cd.c]||'#888'};font-weight:600">${cd.c}</div><div class="kpi-v">${fmtSAR(cd.total)}</div><div class="kpi-s">${totalAll>0?((cd.total/totalAll)*100).toFixed(1):0}% • ${cd.count} عملية</div></div>`).join('');
+  document.getElementById('cat-breakdown').innerHTML = catData.map(cd => {
+    const items = Object.entries(cd.items).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const max = items[0]?items[0][1]:1;
+    return `<div class="card"><div class="card-h" style="color:${CAT_C[cd.c]||'#888'}"><i class="ti ti-tag"></i> ${cd.c} — ${fmtSAR(cd.total)}</div>${items.map(([d,v])=>`<div class="bar-row"><div class="bar-lbl">${d}</div><div class="bar-track"><div class="bar-fill" style="width:${(v/max*100).toFixed(0)}%;background:${CAT_C[cd.c]||'#888'}"></div></div><div class="bar-val">${fmtSAR(v)}</div></div>`).join('')}</div>`;
+  }).join('');
+}
+
+// =================== FORECAST ===================
+function renderForecast() {
+  const ig = parseFloat(document.getElementById('sl-ig').value)/100;
+  const eg = parseFloat(document.getElementById('sl-eg').value)/100;
+  const rate = parseFloat(document.getElementById('sl-rf').value);
+  const lastI = getMS('مايو').inc, lastE = getMS('مايو').exp;
+  const futureM = MONTHS.slice(5);
+  const fcI = futureM.map((_,i) => Math.round(lastI*(1+ig*(i+1))));
+  const fcE = futureM.map((_,i) => Math.round(lastE*(1+eg*(i+1))));
+  const totIDone = DONE.reduce((s,m)=>s+getMS(m).inc,0);
+  const totEDone = DONE.reduce((s,m)=>s+getMS(m).exp,0);
+  const yearI = totIDone + fcI.reduce((a,b)=>a+b,0);
+  const yearE = totEDone + fcE.reduce((a,b)=>a+b,0);
+  const yearN = yearI-yearE;
+  document.getElementById('fc-kpis').innerHTML = `
+    <div class="kpi pos"><div class="kpi-l">إيرادات السنة (متوقع)</div><div class="kpi-v">${fmtSAR(yearI)}</div><div class="kpi-s">${fmtEGP(yearI*rate)}</div></div>
+    <div class="kpi neg"><div class="kpi-l">مصروفات السنة (متوقع)</div><div class="kpi-v">${fmtSAR(yearE)}</div><div class="kpi-s">${fmtEGP(yearE*rate)}</div></div>
+    <div class="kpi ${yearN>=0?'pos':'neg'}"><div class="kpi-l">صافي نهاية العام</div><div class="kpi-v">${fmtSAR(yearN)}</div><div class="kpi-s">${fmtEGP(yearN*rate)}</div></div>
+    <div class="kpi ${yearN/yearI>=0.2?'pos':yearN/yearI>=0?'warn':'neg'}"><div class="kpi-l">معدل الادخار السنوي</div><div class="kpi-v">${yearI>0?(yearN/yearI*100).toFixed(1):0}%</div></div>
+  `;
+  const allM = [...DONE,...futureM];
+  const allI = [...DONE.map(m=>Math.round(getMS(m).inc)),...fcI];
+  const allE = [...DONE.map(m=>Math.round(getMS(m).exp)),...fcE];
+  if(charts.fci) charts.fci.destroy();
+  charts.fci = new Chart(document.getElementById('ch-fc-i'),{type:'bar',data:{labels:allM,datasets:[{label:'فعلي',data:[...DONE.map(m=>Math.round(getMS(m).inc)),...new Array(7).fill(null)],backgroundColor:'#1D9E75',borderRadius:3},{label:'متوقع',data:[...new Array(5).fill(null),...fcI],backgroundColor:'#9FE1CB',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},autoSkip:false,maxRotation:45}},y:{ticks:{font:{size:10},callback:v=>fmt(v)}}}}});
+  if(charts.fce) charts.fce.destroy();
+  charts.fce = new Chart(document.getElementById('ch-fc-e'),{type:'bar',data:{labels:allM,datasets:[{label:'فعلي',data:[...DONE.map(m=>Math.round(getMS(m).exp)),...new Array(7).fill(null)],backgroundColor:'#E24B4A',borderRadius:3},{label:'متوقع',data:[...new Array(5).fill(null),...fcE],backgroundColor:'#F7C1C1',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},autoSkip:false,maxRotation:45}},y:{ticks:{font:{size:10},callback:v=>fmt(v)}}}}});
+  document.getElementById('fc-table').innerHTML = `<table class="tbl"><thead><tr><th>البند</th>${futureM.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody><tr><td style="color:#0F6E56;font-weight:600">إيرادات</td>${fcI.map(v=>`<td style="color:#0F6E56">${fmt(v)}</td>`).join('')}</tr><tr><td style="color:#A32D2D;font-weight:600">مصروفات</td>${fcE.map(v=>`<td style="color:#A32D2D">${fmt(v)}</td>`).join('')}</tr><tr style="font-weight:600"><td>صافي</td>${fcI.map((v,i)=>{const n=v-fcE[i];return`<td style="color:${n>=0?'#0F6E56':'#A32D2D'}">${fmt(n)}</td>`}).join('')}</tr></tbody></table>`;
+}
+
+// =================== GOALS ===================
+function addGoal() {
+  const name=document.getElementById('g-name').value.trim(), target=parseFloat(document.getElementById('g-target').value)||0, current=parseFloat(document.getElementById('g-current').value)||0;
+  if(!name||!target) return;
+  goals.push({name,target,current,cat:document.getElementById('g-cat').value,priority:document.getElementById('g-priority').value,due:document.getElementById('g-due').value});
+  renderGoals();
+}
+function updateGoal(i) {
+  const v=parseFloat(document.getElementById('gupd-'+i).value);
+  if(!isNaN(v)) goals[i].current=v;
+  renderGoals();
+}
+function renderGoals() {
+  const tot=goals.reduce((s,g)=>s+g.target,0), done=goals.reduce((s,g)=>s+Math.min(g.current,g.target),0);
+  document.getElementById('goals-list').innerHTML = `
+    <div class="g3"><div class="kpi"><div class="kpi-l">إجمالي الأهداف</div><div class="kpi-v">${fmtSAR(tot)}</div></div><div class="kpi pos"><div class="kpi-l">المحقق</div><div class="kpi-v">${fmtSAR(done)}</div></div><div class="kpi info"><div class="kpi-l">التقدم الكلي</div><div class="kpi-v">${tot>0?(done/tot*100).toFixed(0):0}%</div></div></div>
+    ${goals.map((g,i)=>{
+      const pct=Math.min(100,g.target>0?Math.round(g.current/g.target*100):0);
+      const col=pct>=80?'#1D9E75':pct>=40?'#BA7517':'#E24B4A';
+      const priCl=g.priority==='عالية'?'pill-r':g.priority==='متوسطة'?'pill-a':'pill-b';
+      return `<div class="goal-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-weight:600;font-size:14px">${g.name}</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="pill ${priCl}">${g.priority}</span>
+            <span class="pill pill-b">${g.cat}</span>
+            <button class="btn btn-danger" onclick="goals.splice(${i},1);renderGoals()"><i class="ti ti-trash"></i></button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px">
+          <span style="color:var(--text3)">حتى ${g.due}</span>
+          <div style="flex:1;height:10px;background:var(--bg3);border-radius:5px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:5px;transition:width .4s"></div></div>
+          <span style="font-weight:700;color:${col}">${pct}%</span>
+          <span style="color:var(--text3)">${fmtSAR(g.current)} / ${fmtSAR(g.target)}</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input type="number" id="gupd-${i}" placeholder="تحديث المبلغ المحقق (ر.س)" style="flex:1;padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12px;background:var(--bg);color:var(--text)">
+          <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px" onclick="updateGoal(${i})">تحديث</button>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+// =================== ALERTS ===================
+function renderAlerts() {
+  const limit=parseFloat(document.getElementById('sl-el').value)/100, minSave=parseFloat(document.getElementById('sl-sm').value);
+  const alerts=[];
+  DONE.forEach(m=>{
+    const {inc,exp,net}=getMS(m);
+    if(inc>0 && exp/inc>limit) alerts.push({t:'r',msg:`${m}: المصروفات (${fmtSAR(exp)}) تجاوزت ${(limit*100).toFixed(0)}% من الإيرادات (${fmtSAR(inc)})`});
+    if(net<minSave) alerts.push({t:'a',msg:`${m}: صافي الدخل (${fmtSAR(net)}) أقل من الحد الأدنى للادخار (${fmtSAR(minSave)})`});
+  });
+  const totI=DONE.reduce((s,m)=>s+getMS(m).inc,0), totE=DONE.reduce((s,m)=>s+getMS(m).exp,0);
+  if(totI>0 && totE/totI<0.7) alerts.push({t:'g',msg:`الأداء العام ممتاز: المصروفات ${(totE/totI*100).toFixed(0)}% من الإيرادات خلال الفترة`});
+  const mI=getMS('مايو').inc, aI=getMS('ابريل').inc;
+  if(mI>aI*1.1) alerts.push({t:'g',msg:`نمو ملحوظ في مايو: الإيرادات ارتفعت ${((mI/aI-1)*100).toFixed(0)}% عن ابريل`});
+  document.getElementById('alerts-list').innerHTML = alerts.length===0 ?
+    '<div class="alert alert-g"><i class="ti ti-check-circle"></i> لا توجد تنبيهات حرجة حالياً — وضعك المالي جيد</div>' :
+    alerts.map(a=>`<div class="alert alert-${a.t}"><i class="ti ti-${a.t==='r'?'alert-circle':a.t==='a'?'alert-triangle':'check'}"></i>${a.msg}</div>`).join('');
+}
+
+// =================== COMPARE ===================
+function renderCompare() {
+  const m1=document.getElementById('cmp-m1').value, m2=document.getElementById('cmp-m2').value;
+  const s1=getMS(m1), s2=getMS(m2);
+  const iD=s2.inc-s1.inc, eD=s2.exp-s1.exp, nD=s2.net-s1.net;
+  document.getElementById('cmp-kpis').innerHTML = `
+    <div class="kpi pos"><div class="kpi-l">إيرادات ${m1}</div><div class="kpi-v">${fmtSAR(s1.inc)}</div></div>
+    <div class="kpi pos"><div class="kpi-l">إيرادات ${m2}</div><div class="kpi-v">${fmtSAR(s2.inc)}</div><div class="kpi-s"><span class="pill ${iD>=0?'pill-g':'pill-r'}">${iD>=0?'+':''}${fmt(iD)}</span></div></div>
+    <div class="kpi neg"><div class="kpi-l">مصروفات ${m1}</div><div class="kpi-v">${fmtSAR(s1.exp)}</div></div>
+    <div class="kpi neg"><div class="kpi-l">مصروفات ${m2}</div><div class="kpi-v">${fmtSAR(s2.exp)}</div><div class="kpi-s"><span class="pill ${eD<=0?'pill-g':'pill-r'}">${eD>=0?'+':''}${fmt(eD)}</span></div></div>
+  `;
+  const cats=[...new Set(DATA.map(r=>r.c))];
+  const cm1={}, cm2={};
+  DATA.filter(r=>r.m===m1).forEach(r=>{cm1[r.c]=(cm1[r.c]||0)+r.sar});
+  DATA.filter(r=>r.m===m2).forEach(r=>{cm2[r.c]=(cm2[r.c]||0)+r.sar});
+  document.getElementById('cmp-detail').innerHTML = `
+    <div class="cmp-hdr" style="grid-template-columns:160px 1fr 1fr 100px"><div>الفئة</div><div>${m1}</div><div>${m2}</div><div>الفرق</div></div>
+    ${cats.map(c=>{
+      const v1=cm1[c]||0, v2=cm2[c]||0, diff=v2-v1;
+      const better=c==='ايرادات شهرية'?diff>0:diff<0;
+      return `<div class="cmp-row" style="grid-template-columns:160px 1fr 1fr 100px"><div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${CAT_C[c]||'#888'};margin-left:5px"></span>${c}</div><div>${fmtSAR(v1)}</div><div>${fmtSAR(v2)}</div><div><span class="pill ${better?'pill-g':'pill-r'}">${diff>=0?'+':''}${fmt(diff)}</span></div></div>`;
+    }).join('')}
+    <div class="cmp-row" style="grid-template-columns:160px 1fr 1fr 100px;font-weight:700"><div>صافي الدخل</div><div style="color:${s1.net>=0?'#0F6E56':'#A32D2D'}">${fmtSAR(s1.net)}</div><div style="color:${s2.net>=0?'#0F6E56':'#A32D2D'}">${fmtSAR(s2.net)}</div><div><span class="pill ${nD>=0?'pill-g':'pill-r'}">${nD>=0?'+':''}${fmt(nD)}</span></div></div>
+  `;
+  if(charts.cmp) charts.cmp.destroy();
+  charts.cmp = new Chart(document.getElementById('ch-cmp'),{type:'bar',data:{labels:cats,datasets:[{label:m1,data:cats.map(c=>Math.round(cm1[c]||0)),backgroundColor:'#378ADD',borderRadius:3},{label:m2,data:cats.map(c=>Math.round(cm2[c]||0)),backgroundColor:'#1D9E75',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10},callback:v=>fmt(v)}}}}});
+}
+
+// =================== CASHFLOW ===================
+function renderCashflow() {
+  let cum=0;
+  const cumD=DONE.map(m=>{cum+=getMS(m).net; return Math.round(cum);});
+  if(charts.cf) charts.cf.destroy();
+  charts.cf = new Chart(document.getElementById('ch-cf'),{type:'line',data:{labels:DONE,datasets:[{label:'التراكمي',data:cumD,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.08)',fill:true,tension:0.3,pointBackgroundColor:cumD.map(v=>v>=0?'#1D9E75':'#E24B4A'),pointRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:12}}},y:{ticks:{font:{size:11},callback:v=>fmt(v)},grid:{color:'rgba(128,128,128,0.08)'},beginAtZero:false}}}});
+  document.getElementById('cf-monthly').innerHTML = DONE.map(m=>{
+    const {inc,exp,net}=getMS(m);
+    return `<div class="fc-row"><span style="font-weight:600">${m}</span><div style="display:flex;gap:8px;align-items:center"><span style="font-size:11px;color:#0F6E56">+${fmt(inc)}</span><span style="font-size:11px;color:#A32D2D">-${fmt(exp)}</span><span class="pill ${net>=0?'pill-g':'pill-r'}">${net>=0?'+':''}${fmt(net)}</span></div></div>`;
+  }).join('');
+  const tI=DONE.reduce((s,m)=>s+getMS(m).inc,0), tE=DONE.reduce((s,m)=>s+getMS(m).exp,0), tN=tI-tE;
+  document.getElementById('cf-positions').innerHTML = [
+    ['إجمالي الإيرادات (5 أشهر)',fmtSAR(tI),'#0F6E56'],
+    ['إجمالي المصروفات (5 أشهر)',fmtSAR(tE),'#A32D2D'],
+    ['الصافي التراكمي',fmtSAR(tN),tN>=0?'#0F6E56':'#A32D2D'],
+    ['متوسط صافي شهري',fmtSAR(tN/5),tN>=0?'#0F6E56':'#A32D2D'],
+    ['أعلى شهر دخلاً','مايو ('+fmtSAR(getMS('مايو').inc)+')', '#185FA5'],
+    ['نسبة الادخار الفعلية',(tN/tI*100).toFixed(1)+'%',tN/tI>=0.1?'#0F6E56':'#A32D2D'],
+  ].map(([l,v,c])=>`<div class="fc-row"><span style="color:var(--text2)">${l}</span><span style="font-weight:700;color:${c}">${v}</span></div>`).join('');
+}
+
+// =================== ENTRY ===================
+function calcEGP(){const s=parseFloat(document.getElementById('e-sar').value)||0,r=parseFloat(document.getElementById('e-rate').value)||1;document.getElementById('e-egp').value=(s*r).toFixed(2);}
+function calcSAR(){const e=parseFloat(document.getElementById('e-egp').value)||0,r=parseFloat(document.getElementById('e-rate').value)||1;document.getElementById('e-sar').value=(e/r).toFixed(2);}
+function clearForm(){['e-desc','e-sar','e-egp'].forEach(id=>document.getElementById(id).value='');document.getElementById('e-rate').value='14';}
+function addEntry(){
+  const m=document.getElementById('e-month').value,c=document.getElementById('e-cat').value,d=document.getElementById('e-desc').value.trim();
+  const sar=parseFloat(document.getElementById('e-sar').value)||0,r=parseFloat(document.getElementById('e-rate').value)||14,egp=parseFloat(document.getElementById('e-egp').value)||sar*r;
+  if(!d){showMsg('الرجاء إدخال البيان','#A32D2D');return;}
+  if(sar<=0){showMsg('الرجاء إدخال قيمة صحيحة','#A32D2D');return;}
+  const entry={y:2026,m,d,c,sar,r,egp};
+  DATA.push(entry); sessionEntries.push(entry);
+  clearForm(); showMsg('تمت الإضافة بنجاح! ✓','#0F6E56');
+  renderSessionList(); initFilters(); renderAll();
+}
+function showMsg(txt,col){const el=document.getElementById('entry-msg');el.textContent=txt;el.style.color=col;setTimeout(()=>el.textContent='',2500);}
+function renderSessionList(){
+  if(!sessionEntries.length){document.getElementById('session-list').innerHTML='<p style="font-size:13px;color:var(--text3);padding:8px 0">لا توجد عمليات مضافة بعد في هذه الجلسة.</p>';return;}
+  document.getElementById('session-list').innerHTML=`<table class="tbl"><thead><tr><th>الشهر</th><th>الفئة</th><th>البيان</th><th>ر.س</th><th>سعر الصرف</th><th>ج.م</th></tr></thead><tbody>${sessionEntries.map(r=>`<tr><td>${r.m}</td><td>${r.c}</td><td>${r.d}</td><td style="color:${r.c==='ايرادات شهرية'?'#1D9E75':'#A32D2D'};font-weight:600">${fmt(r.sar)}</td><td>${r.r}</td><td>${fmt(Math.round(r.egp))}</td></tr>`).join('')}</tbody></table>`;
+}
+function importBulk(){
+  const txt=document.getElementById('bulk-txt').value.trim(); if(!txt) return;
+  let count=0;
+  txt.split('\n').forEach(line=>{const p=line.split(',');if(p.length>=7){const[y,m,d,c,sar,r,egp]=p;if(m.trim()&&d.trim()){DATA.push({y:parseInt(y)||2026,m:m.trim(),d:d.trim(),c:c.trim(),sar:parseFloat(sar)||0,r:parseFloat(r)||14,egp:parseFloat(egp)||0});count++;}}});
+  alert('تم استيراد '+count+' عملية بنجاح!');
+  document.getElementById('bulk-txt').value='';
+  initFilters(); renderAll();
+}
+
+// =================== TRANSACTIONS ===================
+function renderTx(){
+  const m=document.getElementById('tx-month').value,c=document.getElementById('tx-cat').value,q=document.getElementById('tx-q').value.toLowerCase();
+  const f=DATA.filter(r=>(m==='all'||r.m===m)&&(c==='all'||r.c===c)&&(q===''||r.d.toLowerCase().includes(q)||r.c.includes(q)));
+  document.getElementById('tx-count').textContent=f.length+' عملية';
+  document.getElementById('tx-body').innerHTML=f.map((r,i)=>`<tr><td>${r.m}</td><td><span style="background:${CAT_C[r.c]+'22'};color:${CAT_C[r.c]};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${r.c}</span></td><td>${r.d}</td><td style="color:${r.c==='ايرادات شهرية'?'#1D9E75':'#A32D2D'};font-weight:700">${r.c==='ايرادات شهرية'?'+':''}${fmt(r.sar)}</td><td>${r.r}</td><td>${fmt(Math.round(r.egp))}</td><td><button class="btn btn-danger" onclick="delEntry(${DATA.indexOf(r)})"><i class="ti ti-trash"></i></button></td></tr>`).join('');
+}
+function delEntry(i){if(confirm('حذف هذه العملية؟')){DATA.splice(i,1);initFilters();renderAll();renderTx();}}
+function exportCSV(){
+  const rows=[['السنة','الشهر','البيان','التصنيف','القيمة بالريال','سعر الصرف','القيمة بالجنيه'],...DATA.map(r=>[r.y,r.m,r.d,r.c,r.sar,r.r,r.egp])];
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ميزانيتي_2026_export.csv'; a.click();
+}
+
+// =================== INIT ===================
+document.getElementById('today-date').textContent = new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'});
+initFilters();
+renderAll();
+renderSessionList();
+</script>
+<!-- Firebase -->
+<!-- Bridge script للتعامل مع تأخر تحميل module -->
+<script>
+// هذه دوال وهمية تنتظر تحميل Firebase
+
+// ===== PASSWORD PROTECTION =====
+(function(){
+  const HASH = '7c4a8d09ca3762af61e59520943dc26806ba';
+  // Simple check - stored in sessionStorage so no re-entry per session
+  function hashStr(str) {
+    let hash = 0;
+    for(let i=0;i<str.length;i++){
+      hash = ((hash<<5)-hash)+str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+  window.checkPwd = function() {
+    const val = document.getElementById('pwd-input').value;
+    const err = document.getElementById('pwd-err');
+    if(val === atob('RGFudHlAMTIz')) {
+      sessionStorage.setItem('myz_auth','1');
+      document.getElementById('pwd-screen').style.display='none';
+      err.textContent='';
+    } else {
+      err.textContent='❌ كلمة المرور غير صحيحة';
+      document.getElementById('pwd-input').value='';
+      document.getElementById('pwd-input').focus();
+    }
+  };
+  // Check on load
+  if(sessionStorage.getItem('myz_auth')==='1'){
+    document.addEventListener('DOMContentLoaded',function(){
+      const s = document.getElementById('pwd-screen');
+      if(s) s.style.display='none';
+    });
+  }
+})();
+
+window._fbQueue = [];
+['fbLogin','fbLogout','fbSaveToCloud'].forEach(fn => {
+  window[fn] = function() {
+    // إذا لم يتم تحميل Firebase بعد، انتظر
+    const btn = document.getElementById('auth-btn');
+    if(btn) { btn.disabled = true; }
+    const msg = document.getElementById('auth-msg');
+    if(msg) { msg.textContent = 'جاري تحميل Firebase...'; msg.style.color='#854F0B'; }
+    window._fbQueue.push(fn);
+    setTimeout(() => {
+      if(msg) msg.textContent = 'يرجى المحاولة مرة أخرى';
+      if(btn) btn.disabled = false;
+    }, 3000);
+  };
+});
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyABoBENu_C0usQg_vWLm76n3A08_rdStWI",
+  authDomain: "myzanetty-2026.firebaseapp.com",
+  projectId: "myzanetty-2026",
+  storageBucket: "myzanetty-2026.firebasestorage.app",
+  messagingSenderId: "496699644075",
+  appId: "1:496699644075:web:8b82badd2639c9a10a7fee",
+  measurementId: "G-1HYK53HWR6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+let currentUser = null;
+let _unsubscribe = null;
+let _saving = false;
+
+// دوال Firebase معرّفة أدناه بعد تحميل الـ module
+
+async function _saveToFirebase(uid) {
+  try {
+    _saving = true;
+    await setDoc(doc(db,'users',uid), {
+      DATA: window.DATA || [],
+      goals: window.goals || [],
+      updatedAt: new Date().toISOString()
+    });
+    _saving = false;
+    const el = document.getElementById('sync-status');
+    if(el) el.textContent = '🟢 محفوظ في السحابة';
+    const lu = document.getElementById('last-update');
+    if(lu) lu.textContent = 'آخر مزامنة: ' + new Date().toLocaleTimeString('ar-SA');
+  } catch(e) {
+    _saving = false;
+    console.error('Save error:',e);
+    const el = document.getElementById('sync-status');
+    if(el) el.textContent = '⚠️ فشل الحفظ';
+  }
+}
+
+async function _loadFromFirebase(uid) {
+  try {
+    const snap = await getDoc(doc(db,'users',uid));
+    if(snap.exists()) {
+      const d = snap.data();
+      if(d.DATA  && d.DATA.length)  window.DATA  = d.DATA;
+      if(d.goals && d.goals.length) window.goals = d.goals;
+      if(typeof initFilters==='function') initFilters();
+      if(typeof renderAll==='function')   renderAll();
+      if(typeof renderSessionList==='function') renderSessionList();
+      const el = document.getElementById('sync-status');
+      if(el) el.textContent = '🟢 متزامن';
+      const lu = document.getElementById('last-update');
+      if(lu) lu.textContent = 'آخر مزامنة: ' + new Date().toLocaleTimeString('ar-SA');
+    } else {
+      await _saveToFirebase(uid);
+    }
+  } catch(e) {
+    console.error('Load error:',e);
+    const el = document.getElementById('sync-status');
+    if(el) el.textContent = '⚠️ خطأ في التحميل';
+  }
+}
+
+function _listenFirebase(uid) {
+  if(_unsubscribe) _unsubscribe();
+  _unsubscribe = onSnapshot(doc(db,'users',uid), snap => {
+    if(snap.exists() && !_saving) {
+      const d = snap.data();
+      if(d.DATA)  window.DATA  = d.DATA;
+      if(d.goals) window.goals = d.goals;
+      if(typeof initFilters==='function') initFilters();
+      if(typeof renderAll==='function')   renderAll();
+      if(typeof renderSessionList==='function') renderSessionList();
+      const el = document.getElementById('sync-status');
+      if(el) el.textContent = '🟢 متزامن';
+    }
+  });
+}
+
+// ===== تجاوز الدوال الوهمية بالحقيقية =====
+window.fbLogin = async function() {
+  const btn = document.getElementById('auth-btn');
+  if(btn) btn.disabled = true;
+  try {
+    await signInWithPopup(auth, provider);
+  } catch(e) {
+    console.error('Login error:', e);
+    const msg = document.getElementById('auth-msg');
+    if(msg) { msg.textContent = 'فشل تسجيل الدخول، حاول مرة أخرى'; msg.style.color='#A32D2D'; }
+    if(btn) btn.disabled = false;
+  }
+};
+window.fbLogout = async function() {
+  if(_unsubscribe) _unsubscribe();
+  await signOut(auth);
+};
+window.fbSaveToCloud = async function() {
+  if(!currentUser) return;
+  await _saveToFirebase(currentUser.uid);
+};
+
+// ===== مراقبة حالة الدخول =====
+onAuthStateChanged(auth, async user => {
+  currentUser = user;
+  if(user) {
+    // أخفِ overlay وأظهر بيانات المستخدم
+    const overlay = document.getElementById('auth-panel');
+    if(overlay) overlay.style.display = 'none';
+    const up = document.getElementById('user-panel');
+    if(up) up.style.display = 'flex';
+    const topBtn = document.getElementById('auth-topbar-btn');
+    if(topBtn) topBtn.style.display = 'none';
+    const name = document.getElementById('user-name');
+    if(name) name.textContent = user.displayName || user.email;
+    const avatar = document.getElementById('user-avatar');
+    if(avatar && user.photoURL) { avatar.src = user.photoURL; avatar.style.display='block'; }
+    const status = document.getElementById('sync-status');
+    if(status) status.textContent = '🔄 جاري المزامنة...';
+    await _loadFromFirebase(user.uid);
+    _listenFirebase(user.uid);
+    // ربط الحفظ التلقائي
+    window._fbSaveHook = () => _saveToFirebase(user.uid);
+  } else {
+    // أظهر overlay تسجيل الدخول
+    const overlay = document.getElementById('auth-panel');
+    if(overlay) overlay.style.display = 'flex';
+    const up = document.getElementById('user-panel');
+    if(up) up.style.display = 'none';
+    const topBtn = document.getElementById('auth-topbar-btn');
+    if(topBtn) topBtn.style.display = 'flex';
+    const status = document.getElementById('sync-status');
+    if(status) status.textContent = '🔴 غير متصل';
+    window._fbSaveHook = null;
+  }
+});
+</script>
+</body>
+</html>
