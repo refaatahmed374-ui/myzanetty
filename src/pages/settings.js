@@ -1,0 +1,261 @@
+import {
+  state, setPrefs, saveSettings, saveCategory, deleteCategory, sortedCategories,
+  exportBackup, importBackup, exportCSV, importCSV, wipeAll,
+} from '../core/store.js';
+import { isLockEnabled, setPin, removePin } from '../core/lock.js';
+import { esc, money, num, pct, parseNum, inputNum, todayISO } from '../core/format.js';
+import { APP_VERSION } from '../config.js';
+import { card } from '../ui/parts.js';
+import { openSheet, confirmDialog, toast, saveFile, pickFile, options, isNative, $ } from '../ui/dom.js';
+import { askNewPin, askCurrentPin } from '../ui/lockScreen.js';
+import { icon } from '../ui/icons.js';
+
+const PALETTE = ['#0f9d76', '#e0524f', '#d4880f', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b', '#84cc16', '#06b6d4', '#a855f7'];
+
+const SYNC_TXT = { ok: ['cloud-check', 'متزامن'], syncing: ['refresh', 'جارٍ المزامنة…'], offline: ['cloud-off', 'غير متصل — سيتم الحفظ عند عودة الإنترنت'], error: ['alert-triangle', 'خطأ في المزامنة'], local: ['device-desktop', 'محلي فقط'] };
+
+function categoryForm(c = {}) {
+  const editing = !!c.id;
+  const sheet = openSheet({
+    title: editing ? 'تعديل الفئة' : 'فئة جديدة',
+    body: `<form class="form" novalidate>
+      <label class="field"><span>اسم الفئة</span><input name="name" maxlength="40" value="${esc(c.name || '')}" autofocus></label>
+      <div class="seg">
+        <label class="seg-opt exp"><input type="radio" name="type" value="expense" ${c.type !== 'income' ? 'checked' : ''}><span>مصروف</span></label>
+        <label class="seg-opt inc"><input type="radio" name="type" value="income" ${c.type === 'income' ? 'checked' : ''}><span>إيراد</span></label>
+      </div>
+      <div class="field"><span>اللون</span><div class="swatches">${PALETTE.map((p) => `<label class="swatch" style="--c:${p}"><input type="radio" name="color" value="${p}" ${(c.color || PALETTE[4]) === p ? 'checked' : ''} aria-label="${p}"></label>`).join('')}</div></div>
+      <label class="field"><span>حد الميزانية الشهري (${esc(state.settings.cur1)}) — اتركه 0 لعدم التحديد</span><input name="budget" inputmode="decimal" value="${esc(inputNum(c.budget || 0))}"></label>
+    </form>`,
+    footer: `${editing ? `<button class="btn btn-ghost danger-text" data-act="del">${icon('trash')} حذف</button>` : ''}<button class="btn btn-primary" data-act="save">${icon('check')} حفظ</button>`,
+  });
+  const el = sheet.el;
+  $('form', el).addEventListener('submit', (e) => e.preventDefault());
+  el.addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'save') {
+      const fd = new FormData($('form', el));
+      if (!String(fd.get('name') || '').trim()) return toast('أدخل اسم الفئة', 'warn');
+      saveCategory({ ...c, name: fd.get('name'), type: fd.get('type'), color: fd.get('color'), budget: parseNum(fd.get('budget')) || 0 });
+      sheet.close();
+      toast('تم حفظ الفئة');
+    } else if (act === 'del') {
+      const used = state.transactions.filter((t) => t.catId === c.id).length;
+      const others = state.categories.filter((x) => x.id !== c.id);
+      if (!others.length) return toast('لا يمكن حذف آخر فئة', 'warn');
+      if (!used) {
+        if (await confirmDialog({ title: 'حذف الفئة', text: `حذف «${c.name}»؟`, ok: 'حذف', danger: true })) {
+          await deleteCategory(c.id, null);
+          sheet.close();
+        }
+        return;
+      }
+      const s2 = openSheet({
+        title: 'نقل العمليات قبل الحذف',
+        size: 'sheet-sm',
+        body: `<p class="dialog-text">الفئة «${esc(c.name)}» بها ${num(used)} عملية. اختر فئة لنقلها إليها:</p>
+          <select class="select wide" id="re-cat">${options(others.map((x) => [x.id, x.name]), others.find((x) => x.type === c.type)?.id)}</select>`,
+        footer: `<button class="btn btn-ghost" data-close>إلغاء</button><button class="btn btn-danger" data-act="go">نقل وحذف</button>`,
+      });
+      s2.el.addEventListener('click', async (ev) => {
+        if (!ev.target.closest('[data-act=go]')) return;
+        await deleteCategory(c.id, $('#re-cat', s2.el).value);
+        s2.close();
+        sheet.close();
+        toast('تم حذف الفئة ونقل عملياتها');
+      });
+    }
+  });
+}
+
+async function doImportJSON() {
+  const text = await pickFile('.json,application/json');
+  if (!text) return;
+  let obj;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    return toast('الملف ليس JSON صالحاً', 'err');
+  }
+  const count = Array.isArray(obj?.DATA) ? obj.DATA.length : (obj?.transactions || []).length;
+  const sheet = openSheet({
+    title: 'استيراد نسخة احتياطية',
+    size: 'sheet-sm',
+    body: `<p class="dialog-text">الملف يحتوي على ${num(count)} عملية${Array.isArray(obj?.DATA) ? ' (من النسخة القديمة للتطبيق)' : ''}. كيف تريد استيراده؟</p>
+      <label class="radio-row"><input type="radio" name="mode" value="merge" checked><span><b>دمج</b> مع البيانات الحالية (العمليات المكررة لا تتكرر)</span></label>
+      <label class="radio-row"><input type="radio" name="mode" value="replace"><span><b>استبدال</b> كل البيانات الحالية</span></label>`,
+    footer: `<button class="btn btn-ghost" data-close>إلغاء</button><button class="btn btn-primary" data-act="go">${icon('database-import')} استيراد</button>`,
+  });
+  sheet.el.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-act=go]')) return;
+    const replace = sheet.el.querySelector('input[name=mode]:checked').value === 'replace';
+    if (replace && !(await confirmDialog({ title: 'استبدال البيانات', text: 'سيتم حذف كل البيانات الحالية واستبدالها بمحتوى الملف. متأكد؟', ok: 'استبدال', danger: true }))) return;
+    try {
+      const n = await importBackup(obj, { replace });
+      sheet.close();
+      toast(`تم استيراد ${num(n)} عملية`);
+    } catch (err) {
+      toast(err.message || 'فشل الاستيراد', 'err');
+    }
+  });
+}
+
+function doImportCSV() {
+  const sheet = openSheet({
+    title: 'استيراد من CSV / Excel',
+    body: `<p class="muted small">الصيغة: <code>التاريخ,النوع,الفئة,البيان,المبلغ,سعر الصرف,المبلغ2,ملاحظات</code><br>
+      مثال: <code>2026-06-01,إيراد,إيرادات,راتب,1000,14,14000</code><br>
+      وتُقبل أيضاً صيغة النسخة القديمة: <code>2026,يونيو,راتب,ايرادات شهرية,1000,14,14000</code></p>
+      <textarea id="csv-txt" rows="7" class="mono" placeholder="الصق الأسطر هنا، أو اختر ملفاً"></textarea>`,
+    footer: `<button class="btn btn-ghost" data-act="file">${icon('file-spreadsheet')} اختيار ملف</button><button class="btn btn-primary" data-act="go">${icon('upload')} استيراد</button>`,
+  });
+  sheet.el.addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'file') {
+      const t = await pickFile('.csv,text/csv,text/plain');
+      if (t) $('#csv-txt', sheet.el).value = t;
+    } else if (act === 'go') {
+      const t = $('#csv-txt', sheet.el).value.trim();
+      if (!t) return toast('لا توجد بيانات', 'warn');
+      const r = await importCSV(t);
+      sheet.close();
+      toast(`تم استيراد ${num(r.added)} عملية${r.skipped ? ` (تم تخطي ${num(r.skipped)} سطر)` : ''}`, r.added ? 'ok' : 'warn');
+    }
+  });
+}
+
+async function doWipe() {
+  const sheet = openSheet({
+    title: 'حذف كل البيانات',
+    size: 'sheet-sm',
+    body: `<p class="dialog-text">سيتم حذف كل العمليات والأهداف${state.mode === 'cloud' ? ' من السحابة ومن كل أجهزتك' : ' من هذا الجهاز'}. ننصح بتصدير نسخة احتياطية أولاً.</p>
+      <label class="field"><span>اكتب كلمة <b>حذف</b> للتأكيد</span><input id="wipe-ok" autocomplete="off"></label>`,
+    footer: `<button class="btn btn-ghost" data-close>إلغاء</button><button class="btn btn-danger" data-act="go">${icon('trash')} حذف نهائي</button>`,
+  });
+  sheet.el.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-act=go]')) return;
+    if ($('#wipe-ok', sheet.el).value.trim() !== 'حذف') return toast('اكتب كلمة "حذف" للتأكيد', 'warn');
+    await wipeAll();
+    sheet.close();
+    toast('تم حذف كل البيانات');
+  });
+}
+
+export default {
+  title: 'الإعدادات',
+  mount(root, ctx) {
+    root.addEventListener('change', (e) => {
+      const t = e.target;
+      if (t.name === 'theme') setPrefs({ theme: t.value });
+      else if (t.name === 'digits') setPrefs({ digits: t.value });
+      else if (t.id === 's-cur1' || t.id === 's-cur2') {
+        const v = t.value.trim().slice(0, 8);
+        if (v) saveSettings({ [t.id === 's-cur1' ? 'cur1' : 'cur2']: v });
+      } else if (t.id === 's-rate') {
+        const r = parseNum(t.value);
+        if (r > 0) saveSettings({ rate: r });
+        else toast('سعر صرف غير صالح', 'warn');
+      } else if (t.id === 's-limit') saveSettings({ expenseLimit: Number(t.value) });
+      else if (t.id === 's-minsave') saveSettings({ minSaving: Math.max(0, parseNum(t.value) || 0) });
+    });
+    root.addEventListener('input', (e) => {
+      if (e.target.id === 's-limit') $('#v-limit', root).textContent = pct(Number(e.target.value));
+    });
+    root.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-act]');
+      if (!a) return;
+      const act = a.dataset.act;
+      if (act === 'edit-cat') categoryForm(state.categories.find((c) => c.id === a.dataset.id));
+      else if (act === 'new-cat') categoryForm();
+      else if (act === 'export-json') {
+        await saveFile(`ميزانيتي-نسخة-احتياطية-${todayISO()}.json`, JSON.stringify(exportBackup(), null, 1), 'application/json');
+        toast('تم تصدير النسخة الاحتياطية');
+      } else if (act === 'import-json') doImportJSON();
+      else if (act === 'export-csv') {
+        await saveFile(`ميزانيتي-${todayISO()}.csv`, exportCSV(), 'text/csv');
+        toast('تم تصدير الملف');
+      } else if (act === 'import-csv') doImportCSV();
+      else if (act === 'wipe') doWipe();
+      else if (act === 'lock-on') {
+        const pin = await askNewPin();
+        if (pin) {
+          await setPin(pin);
+          toast('تم تفعيل قفل التطبيق');
+          ctx.rerender();
+        }
+      } else if (act === 'lock-change') {
+        if (!(await askCurrentPin())) return;
+        const pin = await askNewPin();
+        if (pin) {
+          await setPin(pin);
+          toast('تم تغيير الرمز');
+        }
+      } else if (act === 'lock-off') {
+        if (await askCurrentPin()) {
+          removePin();
+          toast('تم إلغاء القفل');
+          ctx.rerender();
+        }
+      }
+    });
+  },
+
+  render(root) {
+    const u = state.user;
+    const [sIc, sTxt] = SYNC_TXT[state.sync] || SYNC_TXT.local;
+    const account =
+      state.mode === 'cloud' && u
+        ? `<div class="account">
+            ${u.photo ? `<img src="${esc(u.photo)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar">${icon('user')}</span>`}
+            <div><b>${esc(u.name || 'مستخدم')}</b><span class="muted small">${esc(u.email || '')}</span><span class="sync-line s-${state.sync}">${icon(sIc)} ${esc(sTxt)}</span></div>
+            <button class="btn btn-ghost btn-sm" data-act="logout">${icon('logout')} خروج</button></div>`
+        : `<p class="muted">بياناتك محفوظة حالياً على هذا الجهاز فقط. سجّل الدخول لحفظها في السحابة ومزامنتها بين أجهزتك — وسيتم نقل بياناتك الحالية تلقائياً.</p>
+           <button class="btn btn-primary" data-act="login">${icon('brand-google')} تسجيل الدخول بـ Google</button>`;
+
+    const cats = sortedCategories();
+    root.innerHTML = `
+      ${card('الحساب والمزامنة', 'cloud', account)}
+
+      ${card('المظهر', 'palette', `
+        <div class="field"><span>السمة</span><div class="seg three">
+          ${[['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(([v, l]) => `<label class="seg-opt"><input type="radio" name="theme" value="${v}" ${state.prefs.theme === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}
+        </div></div>
+        <div class="field"><span>شكل الأرقام</span><div class="seg">
+          <label class="seg-opt"><input type="radio" name="digits" value="arabic" ${state.prefs.digits !== 'latin' ? 'checked' : ''}><span>١٢٣</span></label>
+          <label class="seg-opt"><input type="radio" name="digits" value="latin" ${state.prefs.digits === 'latin' ? 'checked' : ''}><span>123</span></label>
+        </div></div>`)}
+
+      ${card('العملات وسعر الصرف', 'coins', `<div class="row-3">
+        <label class="field"><span>العملة الأساسية</span><input id="s-cur1" maxlength="8" value="${esc(state.settings.cur1)}"></label>
+        <label class="field"><span>العملة الثانية</span><input id="s-cur2" maxlength="8" value="${esc(state.settings.cur2)}"></label>
+        <label class="field"><span>سعر الصرف الافتراضي</span><input id="s-rate" inputmode="decimal" value="${esc(inputNum(state.settings.rate))}"></label>
+      </div><p class="muted small">يُستخدم سعر الصرف كقيمة مبدئية عند إضافة عملية، ويمكن تغييره لكل عملية على حدة.</p>`)}
+
+      ${card('الفئات والميزانيات', 'category', `<div class="cat-list">${cats
+        .map((c) => `<button class="cat-row" data-act="edit-cat" data-id="${esc(c.id)}"><i class="dot lg" style="background:${esc(c.color)}"></i><span class="grow">${esc(c.name)}</span><span class="pill ${c.type === 'income' ? 'pos' : 'neg'}">${c.type === 'income' ? 'إيراد' : 'مصروف'}</span>${c.budget ? `<span class="muted small">حد ${money(c.budget)}</span>` : ''}${icon('chevron-left')}</button>`)
+        .join('')}</div><button class="btn btn-ghost" data-act="new-cat">${icon('plus')} فئة جديدة</button>`)}
+
+      ${card('التنبيهات', 'alert-triangle', `<div class="row-2">
+        <label class="field"><span>تنبيه عندما تتجاوز المصروفات <b id="v-limit">${pct(state.settings.expenseLimit)}</b> من الإيرادات</span><input type="range" id="s-limit" min="50" max="100" step="5" value="${state.settings.expenseLimit}"></label>
+        <label class="field"><span>أدنى ادخار شهري مقبول (${esc(state.settings.cur1)})</span><input id="s-minsave" inputmode="decimal" value="${esc(inputNum(state.settings.minSaving))}"></label>
+      </div>`)}
+
+      ${card('الأمان', 'shield-lock', isLockEnabled()
+        ? `<p class="muted">قفل التطبيق مفعّل على هذا الجهاز.</p><div class="btn-row"><button class="btn btn-ghost" data-act="lock-change">${icon('lock')} تغيير الرمز</button><button class="btn btn-ghost danger-text" data-act="lock-off">إلغاء القفل</button></div>`
+        : `<p class="muted">اطلب رمزاً من 4 أرقام عند فتح التطبيق على هذا الجهاز.</p><button class="btn btn-ghost" data-act="lock-on">${icon('lock')} تفعيل قفل التطبيق</button>`)}
+
+      ${card('البيانات والنسخ الاحتياطي', 'database-export', `<div class="btn-grid">
+        <button class="btn btn-ghost" data-act="export-json">${icon('database-export')} تصدير نسخة احتياطية</button>
+        <button class="btn btn-ghost" data-act="import-json">${icon('database-import')} استيراد نسخة احتياطية</button>
+        <button class="btn btn-ghost" data-act="export-csv">${icon('file-spreadsheet')} تصدير Excel (CSV)</button>
+        <button class="btn btn-ghost" data-act="import-csv">${icon('upload')} استيراد من CSV</button>
+      </div>
+      <p class="muted small">النسخة الاحتياطية تقبل أيضاً ملف البيانات من النسخة القديمة للتطبيق.</p>
+      <button class="btn btn-ghost danger-text" data-act="wipe">${icon('trash')} حذف كل البيانات</button>`)}
+
+      ${card('حول التطبيق', 'info-circle', `<div class="kv"><span>الإصدار</span><b>${esc(APP_VERSION)}${isNative ? ' (أندرويد)' : ''}</b></div>
+        <div class="kv"><span>عدد العمليات</span><b>${num(state.transactions.length)}</b></div>
+        <p class="muted small">بياناتك خاصة بك: عند تسجيل الدخول تُحفظ في حسابك على Firebase ولا يستطيع أي مستخدم آخر قراءتها، وتعمل بدون إنترنت وتتزامن تلقائياً.</p>`)}
+    `;
+  },
+};

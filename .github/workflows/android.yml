@@ -1,0 +1,74 @@
+# يبني ملف APK لأندرويد على سيرفرات GitHub (لا تحتاج Android Studio على جهازك)
+# التشغيل: Actions ← "Android APK" ← Run workflow — أو تلقائياً عند إنشاء tag يبدأ بـ v (مثل v2.0.1)
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: تجهيز مفتاح التوقيع
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          else
+            echo "::warning::لا يوجد سر ANDROID_KEYSTORE_BASE64 — سيتم بناء نسخة debug (تسجيل الدخول بـ Google لن يعمل عليها)"
+          fi
+
+      - name: بناء APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: myzanetty
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          export VERSION_NAME="$(node -p "require('../package.json').version")"
+          if [ -n "$ANDROID_KEYSTORE_PATH" ]; then
+            ./gradlew --no-daemon assembleRelease
+            cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/myzanetty-$VERSION_NAME.apk"
+          else
+            ./gradlew --no-daemon assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/myzanetty-$VERSION_NAME-debug.apk"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: myzanetty-apk
+          path: ${{ runner.temp }}/myzanetty-*.apk
+
+      - name: نشر الإصدار (عند وجود tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ runner.temp }}/myzanetty-*.apk
+          body: |
+            حمّل ملف APK من الأسفل على موبايلك وافتحه لتثبيت/تحديث تطبيق ميزانيتي.

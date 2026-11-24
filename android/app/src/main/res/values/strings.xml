@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ميزانيتي</string>
+    <string name="title_activity_main">ميزانيتي</string>
+    <string name="package_name">com.myzanetty.app</string>
+    <string name="custom_url_scheme">com.myzanetty.app</string>
+</resources>

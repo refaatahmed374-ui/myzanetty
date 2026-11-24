@@ -1,0 +1,123 @@
+import { state, saveGoal, deleteGoal } from '../core/store.js';
+import { goalPlan } from '../core/calc.js';
+import { esc, money, num, pct, parseNum, inputNum, monthLabel, currentMonthKey } from '../core/format.js';
+import { kpi, progress } from '../ui/parts.js';
+import { emptyState, openSheet, confirmDialog, toast, options, $ } from '../ui/dom.js';
+import { icon } from '../ui/icons.js';
+
+const KINDS = ['ادخار', 'طوارئ', 'سداد ديون', 'استثمار', 'مشتريات', 'سفر', 'تعليم', 'أخرى'];
+const PRIORITIES = ['عالية', 'متوسطة', 'منخفضة'];
+const PRI_ORDER = { عالية: 0, متوسطة: 1, منخفضة: 2 };
+
+function goalForm(g = {}) {
+  const editing = !!g.id;
+  const sheet = openSheet({
+    title: editing ? 'تعديل الهدف' : 'هدف مالي جديد',
+    body: `<form class="form" novalidate>
+      <label class="field"><span>اسم الهدف</span><input name="name" maxlength="80" value="${esc(g.name || '')}" placeholder="مثال: صندوق طوارئ" autofocus></label>
+      <div class="row-2">
+        <label class="field"><span>المبلغ المستهدف (${esc(state.settings.cur1)})</span><input name="target" inputmode="decimal" value="${esc(inputNum(g.target ?? ''))}"></label>
+        <label class="field"><span>المحقق حالياً</span><input name="current" inputmode="decimal" value="${esc(inputNum(g.current ?? 0))}"></label>
+      </div>
+      <div class="row-3">
+        <label class="field"><span>النوع</span><select name="kind" class="select">${options(KINDS.map((k) => [k, k]), g.kind || 'ادخار')}</select></label>
+        <label class="field"><span>الأولوية</span><select name="priority" class="select">${options(PRIORITIES.map((k) => [k, k]), g.priority || 'متوسطة')}</select></label>
+        <label class="field"><span>الموعد</span><input type="month" name="due" value="${esc(g.due || '')}" min="${currentMonthKey()}"></label>
+      </div>
+      <p class="form-err" role="alert"></p>
+    </form>`,
+    footer: `${editing ? `<button class="btn btn-ghost danger-text" data-act="del">${icon('trash')} حذف</button>` : ''}<button class="btn btn-primary" data-act="save">${icon('check')} حفظ</button>`,
+  });
+  const el = sheet.el;
+  el.addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'del') {
+      if (await confirmDialog({ title: 'حذف الهدف', text: `حذف «${g.name}»؟`, ok: 'حذف', danger: true })) {
+        deleteGoal(g.id);
+        sheet.close();
+        toast('تم حذف الهدف');
+      }
+    } else if (act === 'save') {
+      const fd = new FormData($('form', el));
+      const name = String(fd.get('name') || '').trim();
+      const target = parseNum(fd.get('target'));
+      if (!name) return ($('.form-err', el).textContent = 'أدخل اسم الهدف');
+      if (!(target > 0)) return ($('.form-err', el).textContent = 'أدخل مبلغاً مستهدفاً صحيحاً');
+      saveGoal({ ...g, name, target, current: parseNum(fd.get('current')) || 0, kind: fd.get('kind'), priority: fd.get('priority'), due: fd.get('due') });
+      sheet.close();
+      toast(editing ? 'تم حفظ الهدف' : 'تمت إضافة الهدف');
+    }
+  });
+  $('form', el).addEventListener('submit', (e) => e.preventDefault());
+}
+
+function contribute(g) {
+  const sheet = openSheet({
+    title: `إضافة مبلغ إلى «${g.name}»`,
+    size: 'sheet-sm',
+    body: `<div class="amount-field"><input id="g-add" inputmode="decimal" placeholder="0" autofocus><span class="amount-cur">${esc(state.settings.cur1)}</span></div>
+      <p class="muted small">المحقق حالياً ${money(g.current)} من ${money(g.target)}. استخدم قيمة سالبة للسحب.</p>`,
+    footer: `<button class="btn btn-primary" data-act="ok">${icon('check')} إضافة</button>`,
+  });
+  const go = () => {
+    const v = parseNum($('#g-add', sheet.el).value);
+    if (!Number.isFinite(v) || v === 0) return;
+    saveGoal({ ...g, current: Math.max(0, g.current + v) });
+    sheet.close();
+    if (g.current < g.target && g.current + v >= g.target) toast(`🎉 مبروك! حققت هدف «${g.name}»`, 'ok', 4000);
+    else toast('تم التحديث');
+  };
+  sheet.el.addEventListener('click', (e) => e.target.closest('[data-act=ok]') && go());
+  $('#g-add', sheet.el).addEventListener('keydown', (e) => e.key === 'Enter' && go());
+}
+
+export default {
+  title: 'الأهداف',
+  mount(root) {
+    root.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-act]');
+      if (!a) return;
+      const g = state.goals.find((x) => x.id === a.dataset.id);
+      if (a.dataset.act === 'new-goal') goalForm();
+      else if (a.dataset.act === 'edit-goal' && g) goalForm(g);
+      else if (a.dataset.act === 'add-goal' && g) contribute(g);
+    });
+  },
+  render(root) {
+    const goals = [...state.goals].sort((a, b) => (PRI_ORDER[a.priority] ?? 9) - (PRI_ORDER[b.priority] ?? 9) || (a.due || '9').localeCompare(b.due || '9'));
+    const newBtn = `<button class="btn btn-primary" data-act="new-goal">${icon('plus')} هدف جديد</button>`;
+    if (!goals.length) {
+      root.innerHTML = emptyState('target', 'لا توجد أهداف بعد', 'حدد هدفاً مالياً (صندوق طوارئ، سداد دين، سفر…) وتابع تقدمك نحوه.', newBtn);
+      return;
+    }
+    const tot = goals.reduce((s, g) => s + g.target, 0);
+    const done = goals.reduce((s, g) => s + Math.min(g.current, g.target), 0);
+    root.innerHTML = `
+      <div class="kpis three">
+        ${kpi({ label: 'إجمالي الأهداف', value: money(tot), ic: 'target' })}
+        ${kpi({ label: 'المحقق', value: money(done), tone: 'pos', ic: 'pig-money' })}
+        ${kpi({ label: 'التقدم الكلي', value: pct(tot ? (done / tot) * 100 : 0), tone: 'info', ic: 'chart-line' })}
+      </div>
+      <div class="page-actions">${newBtn}</div>
+      <div class="goals">${goals
+        .map((g) => {
+          const ratio = g.target > 0 ? g.current / g.target : 0;
+          const plan = goalPlan(g);
+          const doneG = ratio >= 1;
+          const late = plan.monthsLeft !== null && plan.monthsLeft <= 0 && !doneG;
+          return `<article class="goal card ${doneG ? 'done' : ''}">
+            <header class="goal-h">
+              <div><h3>${esc(g.name)}</h3><div class="goal-tags"><span class="pill ${g.priority === 'عالية' ? 'neg' : g.priority === 'متوسطة' ? 'warn' : 'info'}">${esc(g.priority)}</span><span class="pill">${esc(g.kind)}</span>${g.due ? `<span class="pill ${late ? 'neg' : ''}">${icon('calendar')} ${monthLabel(g.due)}</span>` : ''}</div></div>
+              <button class="icon-btn" data-act="edit-goal" data-id="${esc(g.id)}" aria-label="تعديل">${icon('pencil')}</button>
+            </header>
+            <div class="goal-nums"><b>${money(g.current)}</b><span>من ${money(g.target)}</span><strong>${pct(Math.min(100, ratio * 100))}</strong></div>
+            ${progress(Math.min(1, ratio), doneG ? 'pos' : ratio >= 0.4 ? 'info' : 'warn')}
+            <footer class="goal-f">
+              <span class="muted small">${doneG ? '✓ تم تحقيق الهدف' : late ? `انتهى الموعد — متبقٍ ${money(plan.remaining)}` : plan.perMonth ? `تحتاج ${money(plan.perMonth)} شهرياً لمدة ${num(plan.monthsLeft)} شهر` : `متبقٍ ${money(plan.remaining)}`}</span>
+              <button class="btn btn-ghost btn-sm" data-act="add-goal" data-id="${esc(g.id)}">${icon('plus')} إضافة مبلغ</button>
+            </footer>
+          </article>`;
+        })
+        .join('')}</div>`;
+  },
+};
