@@ -127,7 +127,7 @@ test('العمليات المتكررة: تُنشأ مرة واحدة لكل ش�
 
 test('الأقساط: المدفوع والمتبقي والدفع التلقائي يتوقف عند الانتهاء', async () => {
   await store.wipeAll({ keepCategories: true });
-  const d = store.saveDebt({ name: 'تساهيل', total: 1000, installment: 300, fixedIn: 'cur1', initialPaid: 100, dueDay: 5 });
+  const d = store.saveDebt({ name: 'قرض تجريبي', total: 1000, installment: 300, fixedIn: 'cur1', initialPaid: 100, dueDay: 5 });
   let st = store.debtStatus(d);
   assert.equal(st.remaining, 900);
   assert.equal(st.left, 3);

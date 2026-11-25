@@ -119,7 +119,7 @@ function debtForm(d = null) {
   const sheet = openSheet({
     title: editing ? 'تعديل القسط' : 'قسط / دين جديد',
     body: `<form class="form" novalidate>
-      <label class="field"><span>الاسم</span><input name="name" maxlength="80" value="${esc(v.name)}" placeholder="مثال: تساهيل، قرض البنك، جمعية" autofocus></label>
+      <label class="field"><span>الاسم</span><input name="name" maxlength="80" value="${esc(v.name)}" placeholder="مثال: قرض البنك، جمعية، قسط موبايل" autofocus></label>
       <div class="field"><span>العملة</span><div class="seg"><label class="seg-opt"><input type="radio" name="fixedIn" value="cur1" ${v.fixedIn !== 'cur2' ? 'checked' : ''}><span>${esc(cur1())}</span></label><label class="seg-opt"><input type="radio" name="fixedIn" value="cur2" ${v.fixedIn === 'cur2' ? 'checked' : ''}><span>${esc(cur2())}</span></label></div></div>
       <div class="row-3">
         <label class="field"><span>إجمالي المبلغ</span><input name="total" inputmode="decimal" value="${esc(inputNum(v.total))}"></label>
