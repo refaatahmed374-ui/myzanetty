@@ -107,3 +107,79 @@ test('ملف النسخة القديمة الحقيقي (إن وُجد محلي�
     assert.equal(s.exp.toFixed(2), exp.toFixed(2), m);
   }
 });
+
+test('العمليات المتكررة: تُنشأ مرة واحدة لكل شهر وتلحق الشهور الفائتة', async () => {
+  await store.wipeAll({ keepCategories: true });
+  store.saveSettings({ rate: 14 });
+  const r = store.saveRecurring({ desc: 'إيجار', catId: 'bills', fixedIn: 'cur2', amount: 3000, day: 31, start: '2026-01' });
+  assert.equal(await store.applyRecurring('2026-03-15'), 2, 'يناير وفبراير فقط (مارس لم يحن يومه)');
+  assert.ok(store.state.transactions.some((t) => t.date === '2026-02-28'), 'يوم 31 يصبح آخر فبراير');
+  const feb = store.state.transactions.find((t) => t.date === '2026-02-28');
+  assert.equal(feb.amount2, 3000);
+  assert.equal(feb.amount, Math.round((3000 / 14) * 100) / 100);
+  assert.equal(await store.applyRecurring('2026-03-15'), 0, 'لا تكرار عند التشغيل مرة ثانية');
+  assert.equal(await store.applyRecurring('2026-03-31'), 1);
+  store.deleteTransaction(store.state.transactions.find((t) => t.date === '2026-03-31').id);
+  assert.equal(await store.applyRecurring('2026-03-31'), 0, 'العملية المحذوفة لا تُعاد');
+  store.saveRecurring({ ...store.state.recurring.find((x) => x.id === r.id), active: false });
+  assert.equal(await store.applyRecurring('2026-06-30'), 0, 'المتوقفة لا تُنشئ شيئاً');
+});
+
+test('الأقساط: المدفوع والمتبقي والدفع التلقائي يتوقف عند الانتهاء', async () => {
+  await store.wipeAll({ keepCategories: true });
+  const d = store.saveDebt({ name: 'تساهيل', total: 1000, installment: 300, fixedIn: 'cur1', initialPaid: 100, dueDay: 5 });
+  let st = store.debtStatus(d);
+  assert.equal(st.remaining, 900);
+  assert.equal(st.left, 3);
+  store.payDebt(d, 300, '2026-01-05');
+  st = store.debtStatus(d);
+  assert.equal(st.paid, 400);
+  assert.equal(st.left, 2);
+  store.setDebtAuto(d, true);
+  const rule = store.state.recurring.find((x) => x.debtId === d.id);
+  store.saveRecurring({ ...rule, start: '2026-02', lastApplied: '' });
+  const n = await store.applyRecurring('2026-12-31');
+  assert.equal(n, 2, 'قسطان فقط حتى يكتمل المبلغ');
+  assert.ok(store.debtStatus(d).done);
+});
+
+test('التحويل بين الحسابات لا يُحسب إيراداً ولا مصروفاً ويؤثر على الأرصدة', async () => {
+  await store.wipeAll({ keepCategories: true });
+  const bank = store.saveAccount({ name: 'بنك', cur: 'cur1', opening: 1000 });
+  const cash = store.saveAccount({ name: 'كاش مصر', cur: 'cur2', opening: 0 });
+  store.saveTransaction({ catId: 'inc', desc: 'راتب', amount: 2000, rate: 14, accountId: bank.id, date: '2026-05-01' });
+  store.saveTransaction({ type: 'transfer', amount: 500, rate: 14, accountId: bank.id, toAccountId: cash.id, date: '2026-05-02' });
+  store.saveTransaction({ catId: 'personal', desc: 'اكل', amount: 100, rate: 14, amount2: 1400, accountId: cash.id, date: '2026-05-03' });
+  const s = calc.summarize(store.state.transactions);
+  assert.equal(s.inc, 2000);
+  assert.equal(s.exp, 100);
+  assert.equal(s.count, 2);
+  const bal = Object.fromEntries(calc.accountBalances(store.state.transactions, store.accountsList()).map((b) => [b.acc.name, b.balance]));
+  assert.equal(bal['بنك'], 2500);
+  assert.equal(bal['كاش مصر'], 7000 - 1400);
+});
+
+test('التحليل الذكي يكتشف البنود المتكررة والمصروف غير المعتاد', async () => {
+  await store.wipeAll({ keepCategories: true });
+  for (const m of ['01', '02', '03', '04']) {
+    store.saveTransaction({ catId: 'bills', desc: 'نت', amount: 100, date: `2026-${m}-10` });
+    store.saveTransaction({ catId: 'personal', desc: 'بنزين', amount: m === '04' ? 400 : 150, date: `2026-${m}-12` });
+  }
+  const a = calc.analyze(store.state.transactions, store.state.categories, '2026-04', []);
+  assert.ok(a.candidates.some((c) => c.desc === 'نت' && c.stable));
+  assert.ok(a.unusual.some((u) => u.t.desc === 'بنزين'));
+  assert.ok(a.catChanges.find((c) => c.catId === 'personal').diff > 0);
+});
+
+test('النسخة الاحتياطية تشمل الحسابات والمتكرر والأقساط', async () => {
+  const backup = JSON.parse(JSON.stringify(store.exportBackup()));
+  store.saveRecurring({ desc: 'x', amount: 1, day: 1 });
+  store.saveDebt({ name: 'y', total: 10, installment: 1 });
+  const full = JSON.parse(JSON.stringify(store.exportBackup()));
+  await store.wipeAll();
+  await store.importBackup(full, { replace: true });
+  assert.equal(store.state.recurring.length, full.recurring.length);
+  assert.equal(store.state.debts.length, full.debts.length);
+  assert.equal(store.state.accounts.length, full.accounts.length);
+  assert.ok(backup.version >= 3);
+});

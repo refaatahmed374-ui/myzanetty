@@ -1,13 +1,16 @@
 import {
   state, setPrefs, saveSettings, saveCategory, deleteCategory, sortedCategories,
-  exportBackup, importBackup, exportCSV, importCSV, wipeAll,
+  exportBackup, importBackup, exportCSV, importCSV, wipeAll, accountsList, saveAccount, deleteAccount,
 } from '../core/store.js';
+import { accountBalances } from '../core/calc.js';
+import { CURRENCIES, maybeUpdateRate } from '../core/rates.js';
+import { notificationsSupported, ensurePermission, dueItems } from '../core/notify.js';
 import { isLockEnabled, setPin, removePin } from '../core/lock.js';
-import { esc, money, num, pct, parseNum, inputNum, todayISO } from '../core/format.js';
+import { esc, money, money2, num, pct, parseNum, inputNum, todayISO, dateLabel, cur1, cur2 } from '../core/format.js';
 import { APP_VERSION } from '../config.js';
 import { card } from '../ui/parts.js';
 import { openSheet, confirmDialog, toast, saveFile, pickFile, options, isNative, $ } from '../ui/dom.js';
-import { askNewPin, askCurrentPin } from '../ui/lockScreen.js';
+import { askNewPin, askCurrentPin, bioAvailable, bioVerify } from '../ui/lockScreen.js';
 import { icon } from '../ui/icons.js';
 
 const PALETTE = ['#0f9d76', '#e0524f', '#d4880f', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b', '#84cc16', '#06b6d4', '#a855f7'];
@@ -63,6 +66,55 @@ function categoryForm(c = {}) {
         s2.close();
         sheet.close();
         toast('تم حذف الفئة ونقل عملياتها');
+      });
+    }
+  });
+}
+
+const ACC_KINDS = [['bank', 'حساب بنكي'], ['cash', 'كاش'], ['wallet', 'محفظة إلكترونية'], ['card', 'بطاقة']];
+
+function accountForm(a = null) {
+  const editing = !!a?.id;
+  const v = { name: '', kind: 'bank', cur: 'cur1', opening: 0, color: PALETTE[6], ...(a || {}) };
+  const sheet = openSheet({
+    title: editing ? 'تعديل الحساب' : 'حساب / محفظة جديدة',
+    body: `<form class="form" novalidate>
+      <label class="field"><span>الاسم</span><input name="name" maxlength="40" value="${esc(v.name)}" placeholder="مثال: الراجحي، كاش مصر، فودافون كاش" autofocus></label>
+      <div class="row-2">
+        <label class="field"><span>النوع</span><select name="kind" class="select wide">${options(ACC_KINDS, v.kind)}</select></label>
+        <div class="field"><span>عملة الحساب</span><div class="seg"><label class="seg-opt"><input type="radio" name="cur" value="cur1" ${v.cur !== 'cur2' ? 'checked' : ''}><span>${esc(cur1())}</span></label><label class="seg-opt"><input type="radio" name="cur" value="cur2" ${v.cur === 'cur2' ? 'checked' : ''}><span>${esc(cur2())}</span></label></div></div>
+      </div>
+      <label class="field"><span>الرصيد الافتتاحي (قبل أول عملية مسجلة)</span><input name="opening" inputmode="decimal" value="${esc(inputNum(v.opening))}"></label>
+      <div class="field"><span>اللون</span><div class="swatches">${PALETTE.map((p) => `<label class="swatch" style="--c:${p}"><input type="radio" name="color" value="${p}" ${v.color === p ? 'checked' : ''} aria-label="${p}"></label>`).join('')}</div></div>
+    </form>`,
+    footer: `${editing && accountsList().length > 1 ? `<button class="btn btn-ghost danger-text" data-act="del">${icon('trash')} حذف</button>` : ''}<button class="btn btn-primary" data-act="save">${icon('check')} حفظ</button>`,
+  });
+  const el = sheet.el;
+  $('form', el).addEventListener('submit', (e) => e.preventDefault());
+  el.addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'save') {
+      const fd = new FormData($('form', el));
+      if (!String(fd.get('name') || '').trim()) return toast('أدخل اسم الحساب', 'warn');
+      saveAccount({ ...(a || {}), name: fd.get('name'), kind: fd.get('kind'), cur: fd.get('cur'), opening: parseNum(fd.get('opening')) || 0, color: fd.get('color') });
+      sheet.close();
+      toast('تم حفظ الحساب');
+    } else if (act === 'del') {
+      const others = accountsList().filter((x) => x.id !== a.id);
+      const used = state.transactions.filter((t) => t.accountId === a.id || t.toAccountId === a.id).length;
+      const s2 = openSheet({
+        title: 'حذف الحساب',
+        size: 'sheet-sm',
+        body: `<p class="dialog-text">${used ? `الحساب «${esc(a.name)}» عليه ${num(used)} عملية. اختر حساباً لنقلها إليه:` : `حذف «${esc(a.name)}»؟`}</p>
+          ${used ? `<select class="select wide" id="mv-acc">${options(others.map((x) => [x.id, x.name]), others[0]?.id)}</select>` : ''}`,
+        footer: `<button class="btn btn-ghost" data-close>إلغاء</button><button class="btn btn-danger" data-act="go">حذف</button>`,
+      });
+      s2.el.addEventListener('click', async (ev) => {
+        if (!ev.target.closest('[data-act=go]')) return;
+        await deleteAccount(a.id, $('#mv-acc', s2.el)?.value || others[0]?.id);
+        s2.close();
+        sheet.close();
+        toast('تم حذف الحساب');
       });
     }
   });
@@ -147,6 +199,42 @@ export default {
     root.addEventListener('change', (e) => {
       const t = e.target;
       if (t.name === 'theme') setPrefs({ theme: t.value });
+      else if (t.id === 's-code1' || t.id === 's-code2') {
+        const n = t.id === 's-code1' ? '1' : '2';
+        const sym = CURRENCIES.find((c) => c[0] === t.value)?.[2];
+        saveSettings({ ['code' + n]: t.value, ...(sym ? { ['cur' + n]: sym } : {}), rateUpdatedAt: 0 });
+        if (state.settings.autoRate) maybeUpdateRate({ force: true }).then((r) => r && toast(`سعر الصرف الجديد: ${num(r, 4)}`)).catch(() => toast('تعذر جلب سعر الصرف', 'warn'));
+      } else if (t.id === 's-auto') {
+        saveSettings({ autoRate: t.checked });
+        if (t.checked) maybeUpdateRate({ force: true }).then((r) => r && toast(`تم تحديث سعر الصرف: ${num(r, 4)}`)).catch(() => toast('تعذر جلب سعر الصرف — تأكد من الإنترنت', 'warn'));
+      } else if (t.id === 'n-daily') {
+        (async () => {
+          if (t.checked && !(await ensurePermission())) {
+            t.checked = false;
+            return toast('لازم تسمح بالإشعارات من إعدادات الموبايل', 'warn', 4500);
+          }
+          setPrefs({ notifyDaily: t.checked });
+          toast(t.checked ? `هيوصلك تذكير يومي الساعة ${state.prefs.notifyTime}` : 'تم إيقاف التذكير اليومي');
+        })();
+      } else if (t.id === 'n-time') setPrefs({ notifyTime: t.value || '21:00' });
+      else if (t.id === 'n-due') {
+        (async () => {
+          if (t.checked && !(await ensurePermission())) {
+            t.checked = false;
+            return toast('لازم تسمح بالإشعارات من إعدادات الموبايل', 'warn', 4500);
+          }
+          setPrefs({ notifyDue: t.checked });
+        })();
+      } else if (t.id === 'b-bio') {
+        (async () => {
+          if (t.checked && !(await bioVerify('تأكيد تفعيل الفتح بالبصمة'))) {
+            t.checked = false;
+            return;
+          }
+          setPrefs({ bioUnlock: t.checked });
+          toast(t.checked ? 'تم تفعيل الفتح بالبصمة' : 'تم إيقاف الفتح بالبصمة');
+        })();
+      }
       else if (t.id === 's-cur1' || t.id === 's-cur2') {
         const v = t.value.trim().slice(0, 8);
         if (v) saveSettings({ [t.id === 's-cur1' ? 'cur1' : 'cur2']: v });
@@ -165,6 +253,18 @@ export default {
       if (!a) return;
       const act = a.dataset.act;
       if (act === 'edit-cat') categoryForm(state.categories.find((c) => c.id === a.dataset.id));
+      else if (act === 'new-acc') accountForm();
+      else if (act === 'edit-acc') accountForm(accountsList().find((x) => x.id === a.dataset.id));
+      else if (act === 'rate-now') {
+        a.disabled = true;
+        try {
+          const r = await maybeUpdateRate({ force: true });
+          toast(r ? `سعر الصرف الآن: ${num(r, 4)}` : 'لا يوجد اتصال بالإنترنت', r ? 'ok' : 'warn');
+        } catch {
+          toast('تعذر جلب سعر الصرف', 'err');
+        }
+        a.disabled = false;
+      }
       else if (act === 'new-cat') categoryForm();
       else if (act === 'export-json') {
         await saveFile(`ميزانيتي-نسخة-احتياطية-${todayISO()}.json`, JSON.stringify(exportBackup(), null, 1), 'application/json');
@@ -200,6 +300,11 @@ export default {
   },
 
   render(root) {
+    // خيار البصمة يظهر فقط لو الجهاز يدعمها والقفل مفعّل
+    if (isLockEnabled()) bioAvailable().then((ok) => {
+      const slot = root.querySelector('#bio-slot');
+      if (ok && slot) slot.innerHTML = `<label class="switch-row"><input type="checkbox" id="b-bio" ${state.prefs.bioUnlock ? 'checked' : ''}><span>${icon('lock')} الفتح بالبصمة أو الوجه</span></label>`;
+    });
     const u = state.user;
     const [sIc, sTxt] = SYNC_TXT[state.sync] || SYNC_TXT.local;
     const account =
@@ -220,11 +325,23 @@ export default {
           ${[['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(([v, l]) => `<label class="seg-opt"><input type="radio" name="theme" value="${v}" ${state.prefs.theme === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}
         </div></div>`)}
 
-      ${card('العملات وسعر الصرف', 'coins', `<div class="row-3">
-        <label class="field"><span>العملة الأساسية</span><input id="s-cur1" maxlength="8" value="${esc(state.settings.cur1)}"></label>
-        <label class="field"><span>العملة الثانية</span><input id="s-cur2" maxlength="8" value="${esc(state.settings.cur2)}"></label>
-        <label class="field"><span>سعر الصرف الافتراضي</span><input id="s-rate" inputmode="decimal" value="${esc(inputNum(state.settings.rate))}"></label>
-      </div><p class="muted small">يُستخدم سعر الصرف كقيمة مبدئية عند إضافة عملية، ويمكن تغييره لكل عملية على حدة.</p>`)}
+      ${card('الحسابات والمحافظ', 'wallet', `<div class="cat-list">${accountBalances(state.transactions, accountsList())
+        .map((b) => `<button class="cat-row" data-act="edit-acc" data-id="${esc(b.acc.id)}"><i class="dot lg" style="background:${esc(b.acc.color)}"></i><span class="grow">${esc(b.acc.name)}</span><b class="${b.balance < 0 ? 'neg' : ''}">${b.acc.cur === 'cur2' ? money2(b.balance) : money(b.balance)}</b>${icon('chevron-left')}</button>`)
+        .join('')}</div><button class="btn btn-ghost" data-act="new-acc">${icon('plus')} حساب / محفظة جديدة</button>
+        <p class="muted small">لو عندك أكتر من حساب (بنك، كاش، محفظة) هتقدر تختار الحساب في كل عملية وتعمل تحويل بينهم.</p>`)}
+
+      ${card('العملات وسعر الصرف', 'coins', `<div class="row-2">
+        <label class="field"><span>العملة الأساسية</span><select id="s-code1" class="select wide">${options(CURRENCIES.map(([c, n]) => [c, `${n} (${c})`]), state.settings.code1)}</select></label>
+        <label class="field"><span>العملة الثانية</span><select id="s-code2" class="select wide">${options(CURRENCIES.map(([c, n]) => [c, `${n} (${c})`]), state.settings.code2)}</select></label>
+      </div>
+      <div class="row-3">
+        <label class="field"><span>رمز الأساسية</span><input id="s-cur1" maxlength="8" value="${esc(state.settings.cur1)}"></label>
+        <label class="field"><span>رمز الثانية</span><input id="s-cur2" maxlength="8" value="${esc(state.settings.cur2)}"></label>
+        <label class="field"><span>سعر الصرف</span><input id="s-rate" inputmode="decimal" value="${esc(inputNum(state.settings.rate))}" ${state.settings.autoRate ? 'readonly' : ''}></label>
+      </div>
+      <label class="switch-row"><input type="checkbox" id="s-auto" ${state.settings.autoRate ? 'checked' : ''}><span>${icon('refresh')} تحديث سعر الصرف تلقائياً من الإنترنت</span></label>
+      ${state.settings.autoRate ? `<div class="kv"><span>آخر تحديث</span><span>${state.settings.rateUpdatedAt ? `${dateLabel(new Date(state.settings.rateUpdatedAt).toISOString().slice(0, 10))} ${new Date(state.settings.rateUpdatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : '—'} <button class="link" data-act="rate-now">تحديث الآن</button></span></div>` : ''}
+      <p class="muted small">${state.settings.autoRate ? 'السعر الرسمي من ExchangeRate-API ويتحدث كل 12 ساعة. لو بتحوّل بسعر مختلف، اقفل التحديث التلقائي واكتب السعر بنفسك، أو عدّله في كل عملية.' : 'يُستخدم كقيمة مبدئية عند إضافة عملية، ويمكن تغييره لكل عملية على حدة.'}</p>`)}
 
       ${card('الفئات والميزانيات', 'category', `<div class="cat-list">${cats
         .map((c) => `<button class="cat-row" data-act="edit-cat" data-id="${esc(c.id)}"><i class="dot lg" style="background:${esc(c.color)}"></i><span class="grow">${esc(c.name)}</span><span class="pill ${c.type === 'income' ? 'pos' : 'neg'}">${c.type === 'income' ? 'إيراد' : 'مصروف'}</span>${c.budget ? `<span class="muted small">حد ${money(c.budget)}</span>` : ''}${icon('chevron-left')}</button>`)
@@ -235,8 +352,16 @@ export default {
         <label class="field"><span>أدنى ادخار شهري مقبول (${esc(state.settings.cur1)})</span><input id="s-minsave" inputmode="decimal" value="${esc(inputNum(state.settings.minSaving))}"></label>
       </div>`)}
 
+      ${card('الإشعارات والتذكيرات', 'bulb', notificationsSupported()
+        ? `<label class="switch-row"><input type="checkbox" id="n-daily" ${state.prefs.notifyDaily ? 'checked' : ''}><span>تذكير يومي بتسجيل المصروفات</span></label>
+          <label class="field inline-field"><span>الساعة</span><input type="time" id="n-time" value="${esc(state.prefs.notifyTime || '21:00')}"></label>
+          <label class="switch-row"><input type="checkbox" id="n-due" ${state.prefs.notifyDue ? 'checked' : ''}><span>تذكير قبل مواعيد الأقساط والالتزامات بيوم</span></label>
+          <p class="muted small">${dueItems().length ? `مواعيد هذا الشهر: ${dueItems().slice(0, 4).map((d) => `${esc(d.title)} (يوم ${num(d.day)})`).join('، ')}${dueItems().length > 4 ? '…' : ''}` : 'أضف أقساطاً أو عمليات متكررة لتصلك تذكيرات بمواعيدها.'}</p>`
+        : `<p class="muted">الإشعارات متاحة في تطبيق أندرويد. في المتصفح هتلاقي التنبيهات في الصفحة الرئيسية.</p>`)}
+
       ${card('الأمان', 'shield-lock', isLockEnabled()
-        ? `<p class="muted">قفل التطبيق مفعّل على هذا الجهاز.</p><div class="btn-row"><button class="btn btn-ghost" data-act="lock-change">${icon('lock')} تغيير الرمز</button><button class="btn btn-ghost danger-text" data-act="lock-off">إلغاء القفل</button></div>`
+        ? `<p class="muted">قفل التطبيق مفعّل على هذا الجهاز.</p><div class="btn-row"><button class="btn btn-ghost" data-act="lock-change">${icon('lock')} تغيير الرمز</button><button class="btn btn-ghost danger-text" data-act="lock-off">إلغاء القفل</button></div>
+          <div id="bio-slot"></div>`
         : `<p class="muted">اطلب رمزاً من 4 أرقام عند فتح التطبيق على هذا الجهاز.</p><button class="btn btn-ghost" data-act="lock-on">${icon('lock')} تفعيل قفل التطبيق</button>`)}
 
       ${card('البيانات والنسخ الاحتياطي', 'database-export', `<div class="btn-grid">

@@ -1,6 +1,6 @@
-import { state, catName, catColor } from '../core/store.js';
-import { summarize, filterTx, monthlySeries, byCategory, topExpenses, insights, budgetStatus, sortByDateDesc } from '../core/calc.js';
-import { esc, money, num, pct, signed, monthName, currentMonthKey, int } from '../core/format.js';
+import { state, catName, catColor, accountsList } from '../core/store.js';
+import { summarize, filterTx, monthlySeries, byCategory, topExpenses, insights, budgetStatus, sortByDateDesc, accountBalances, analyze } from '../core/calc.js';
+import { esc, money, money2, num, pct, signed, monthName, currentMonthKey, int } from '../core/format.js';
 import { view, summaryKpis, txRow, bar, progress, card, yearSelect, monthChips, periodLabel, syncPeriod } from '../ui/parts.js';
 import { drawChart, themeColors } from '../ui/charts.js';
 import { emptyState, openSheet, $ } from '../ui/dom.js';
@@ -75,12 +75,25 @@ export default {
     const budgets = budgetStatus(all, state.categories, nowKey);
     const recent = sortByDateDesc(period).slice(0, 6);
     const activeMonths = series.filter((m) => m.hasData).length;
+    const accs = accountsList();
+    const showAccounts = accs.length > 1 || accs.some((a) => a.opening);
+    const balances = showAccounts ? accountBalances(all, accs) : [];
+    const an = analyze(all, state.categories, nowKey, state.recurring);
+    const smart = [];
+    if (an.pace?.avgPrev) {
+      const d = an.pace.projected - an.pace.avgPrev;
+      smart.push({ level: d > an.pace.avgPrev * 0.1 ? 'warn' : 'good', text: `بمعدل صرفك الحالي، مصروفات ${monthName(nowKey)} المتوقعة ${money(an.pace.projected)} (متوسطك ${money(an.pace.avgPrev)})` });
+    }
+    const up = an.catChanges.find((c) => c.pct !== null && c.pct >= 25 && c.diff > 0);
+    if (up) smart.push({ level: 'warn', text: `«${catName(up.catId)}» أعلى من متوسطك بـ ${pct(up.pct)} هذا الشهر` });
+    if (an.candidates.length) smart.push({ level: 'info', text: `${num(an.candidates.length)} بند بيتكرر كل شهر — ممكن تخليه يتسجل تلقائياً` });
 
     root.innerHTML = `
       ${banner}
       <div class="period">${yearSelect()}<span class="period-lbl">${esc(periodLabel())}</span></div>
       ${monthChips(view.year)}
       ${summaryKpis(s)}
+      ${showAccounts ? card('الحسابات', 'wallet', `<div class="acc-grid">${balances.map((b) => `<div class="acc-card" style="--c:${esc(b.acc.color)}"><span>${esc(b.acc.name)}</span><b class="${b.balance < 0 ? 'neg' : ''}">${b.acc.cur === 'cur2' ? money2(b.balance) : money(b.balance)}</b></div>`).join('')}</div>`, '<a class="link" href="#/settings">إدارة</a>') : ''}
 
       <div class="grid-2">
         ${card('الإيرادات والمصروفات', 'chart-histogram', `<div class="chart-box"><canvas id="ch-ie" role="img" aria-label="الإيرادات والمصروفات لكل شهر"></canvas></div>
@@ -89,7 +102,8 @@ export default {
           <div class="donut-legend">${cats.map((c) => `<div><i style="background:${esc(catColor(c.catId))}"></i><span>${esc(catName(c.catId))}</span><b>${pct(c.share)}</b></div>`).join('')}</div></div>` : `<p class="muted">لا توجد مصروفات في هذه الفترة</p>`)}
       </div>
 
-      ${ins.length ? card('تنبيهات وملاحظات', 'bulb', `<div class="insights">${ins.slice(0, 4).map(insightItem).join('')}</div>`, ins.length > 4 ? `<button class="link" data-act="all-insights">عرض الكل (${num(ins.length)})</button>` : '') : ''}
+      ${smart.length ? card('تحليل ذكي', 'bulb', `<div class="insights">${smart.map(insightItem).join('')}</div>`, '<a class="link" href="#/reports?tab=analysis">التفاصيل</a>') : ''}
+      ${ins.length ? card('تنبيهات وملاحظات', 'alert-triangle', `<div class="insights">${ins.slice(0, 4).map(insightItem).join('')}</div>`, ins.length > 4 ? `<button class="link" data-act="all-insights">عرض الكل (${num(ins.length)})</button>` : '') : ''}
 
       <div class="grid-2">
         ${budgets.length ? card(`ميزانية ${monthName(nowKey)}`, 'target', budgets.map((b) => `<div class="budget"><div class="budget-h"><span>${esc(b.cat.name)}</span><span class="${b.ratio >= 1 ? 'neg' : ''}">${money(b.spent)} / ${money(b.budget)}</span></div>${progress(b.ratio)}</div>`).join('')) : ''}

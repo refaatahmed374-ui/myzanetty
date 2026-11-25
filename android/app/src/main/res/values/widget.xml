@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_bg">#F7FFFFFF</color>
+    <color name="widget_text">#FF121820</color>
+    <color name="widget_muted">#FF7A8494</color>
+    <string name="widget_desc">ملخص ميزانية الشهر وزر إضافة سريع</string>
+    <string name="widget_net">صافي الشهر</string>
+    <string name="widget_income">الإيرادات</string>
+    <string name="widget_expense">المصروفات</string>
+    <string name="widget_add">إضافة عملية</string>
+    <string name="widget_open_app">افتح التطبيق للتحديث</string>
+</resources>

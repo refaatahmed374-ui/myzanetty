@@ -33,7 +33,7 @@ import {
 } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
 import { firebaseConfig, GOOGLE_WEB_CLIENT_ID } from '../config.js';
-import { DEFAULT_CATEGORIES, DEFAULT_SETTINGS, convertLegacy, setCollection, setSettingsFromCloud, setSync } from './store.js';
+import { DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS, DEFAULT_SETTINGS, COLLECTIONS, convertLegacy, setCollection, setSettingsFromCloud, setSync } from './store.js';
 
 const isNative = Capacitor.isNativePlatform();
 const app = initializeApp(firebaseConfig);
@@ -161,16 +161,21 @@ export async function prepareAccount(uid, local, askMerge) {
     result.migrated = conv.transactions.length;
   }
 
-  const hasLocal = local.transactions.length || local.goals.length;
+  const accSnap = await getDocs(query(col(uid, 'accounts'), limit(1)));
+  const hasLocal = local.transactions.length || local.goals.length || local.recurring?.length || local.debts?.length;
   if (hasLocal) {
     const cloudEmpty = txSnap.empty && !result.migrated;
     const ok = cloudEmpty ? true : await askMerge(local.transactions.length);
     if (ok) {
-      local.transactions.forEach((t) => ops.push((b) => b.set(doc(col(uid, 'transactions'), t.id), t)));
-      local.goals.forEach((g) => ops.push((b) => b.set(doc(col(uid, 'goals'), g.id), g)));
+      for (const name of ['transactions', 'goals', 'recurring', 'debts', 'accounts']) {
+        (local[name] || []).forEach((x) => ops.push((b) => b.set(doc(col(uid, name), x.id), x)));
+      }
       result.merged = local.transactions.length;
       result.clearLocal = true;
     }
+  }
+  if (accSnap.empty && !(result.clearLocal && local.accounts?.length)) {
+    DEFAULT_ACCOUNTS.forEach((a) => ops.push((b) => b.set(doc(col(uid, 'accounts'), a.id), a)));
   }
 
   if (!ud?.createdAt) ops.push((b) => b.set(userRef(uid), { createdAt: serverTimestamp() }, { merge: true }));
@@ -224,17 +229,13 @@ export function attach(uid) {
     );
 
   const unsubs = [
-    listen('transactions'),
-    listen('goals'),
-    listen('categories'),
+    ...COLLECTIONS.map(listen),
     onSnapshot(doc(db, 'users', uid, 'meta', 'settings'), (snap) => setSettingsFromCloud(snap.data()), () => {}),
   ];
   const onNet = () => updateSync();
   window.addEventListener('online', onNet);
   window.addEventListener('offline', onNet);
 
-  const put = (name) => (item) => setDoc(doc(col(uid, name), item.id), item).catch(fail);
-  const del = (name) => (id) => deleteDoc(doc(col(uid, name), id)).catch(fail);
   const fail = (e) => {
     console.error(e);
     setSync('error');
@@ -242,28 +243,24 @@ export function attach(uid) {
 
   const backend = {
     kind: 'cloud',
-    putTx: put('transactions'),
-    delTx: del('transactions'),
-    putGoal: put('goals'),
-    delGoal: del('goals'),
-    putCat: put('categories'),
-    delCat: del('categories'),
+    put: (name, item) => setDoc(doc(col(uid, name), item.id), item).catch(fail),
+    del: (name, id) => deleteDoc(doc(col(uid, name), id)).catch(fail),
     putSettings: (s) => setDoc(doc(db, 'users', uid, 'meta', 'settings'), s).catch(fail),
-    async bulk({ transactions = [], goals = [], categories = [], settings = null }) {
+    /** items = { collectionName: [docs] } — يُكتب دفعة واحدة */
+    async bulk({ settings = null, ...items }) {
       const ops = [];
-      transactions.forEach((t) => ops.push((b) => b.set(doc(col(uid, 'transactions'), t.id), t)));
-      goals.forEach((g) => ops.push((b) => b.set(doc(col(uid, 'goals'), g.id), g)));
-      categories.forEach((c) => ops.push((b) => b.set(doc(col(uid, 'categories'), c.id), c)));
+      for (const [name, list] of Object.entries(items)) {
+        if (!COLLECTIONS.includes(name)) continue;
+        (list || []).forEach((x) => ops.push((b) => b.set(doc(col(uid, name), x.id), x)));
+      }
       if (settings) ops.push((b) => b.set(doc(db, 'users', uid, 'meta', 'settings'), settings));
       // لا ننتظر تأكيد الخادم: Firestore يحفظ محلياً ويزامن لاحقاً حتى بدون إنترنت
       commitInChunks(ops).catch(fail);
     },
-    async wipe(ids, newCats) {
+    async wipe(ids, fresh = {}) {
       const ops = [];
-      ids.transactions.forEach((id) => ops.push((b) => b.delete(doc(col(uid, 'transactions'), id))));
-      ids.goals.forEach((id) => ops.push((b) => b.delete(doc(col(uid, 'goals'), id))));
-      ids.categories.forEach((id) => ops.push((b) => b.delete(doc(col(uid, 'categories'), id))));
-      (newCats || []).forEach((c) => ops.push((b) => b.set(doc(col(uid, 'categories'), c.id), c)));
+      for (const [name, list] of Object.entries(ids)) list.forEach((id) => ops.push((b) => b.delete(doc(col(uid, name), id))));
+      for (const [name, list] of Object.entries(fresh)) (list || []).forEach((x) => ops.push((b) => b.set(doc(col(uid, name), x.id), x)));
       commitInChunks(ops).catch(fail);
     },
   };

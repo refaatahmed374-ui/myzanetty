@@ -534,3 +534,35 @@ input[type='date'], input[type='month'] { direction: rtl; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media print { .bottom-nav, .rail, .appbar-x, .fab, .btn { display: none !important; } .main { padding: 0; } .card { box-shadow: none; break-inside: avoid; } }
+
+/* ===================== v2.1: الحسابات، المتكرر، الأقساط، التحليل ===================== */
+.tx-form .only-transfer { display: none; }
+.tx-form.is-transfer .only-transfer { display: grid; }
+.tx-form.is-transfer .only-cat { display: none; }
+.switch-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14px; cursor: pointer; }
+.switch-row input { width: 20px; height: 20px; accent-color: var(--primary); flex-shrink: 0; }
+.switch-row span { display: inline-flex; align-items: center; gap: 6px; }
+.switch-row .ic { color: var(--primary); width: 18px; height: 18px; }
+.rec-box { border: 1px dashed var(--border-2); border-radius: 12px; padding: 4px 12px 10px; }
+.rec-opts { display: grid; gap: 6px; margin-top: 4px; }
+.hint { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--info); background: var(--info-soft); padding: 9px 12px; border-radius: 10px; }
+.ic.mini { width: 14px; height: 14px; margin-inline-start: 5px; color: var(--text-3); vertical-align: -2px; }
+.tx.off { opacity: 0.55; }
+.tx-amt.muted b { color: var(--text-2); }
+.acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.acc-card { border-radius: 12px; padding: 10px 12px; background: color-mix(in srgb, var(--c) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.acc-card span { font-size: 12.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-card b { font-size: 16px; white-space: nowrap; }
+.debt-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.debt-facts div { background: var(--surface-2); border-radius: 10px; padding: 7px 9px; display: flex; flex-direction: column; min-width: 0; }
+.debt-facts span { font-size: 11.5px; color: var(--text-3); }
+.debt-facts b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 420px) { .debt-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.page-actions.end { justify-content: flex-end; margin-bottom: 8px; }
+.big-line { font-size: 17px; margin: 8px 0; }
+.inline-field { flex-direction: row; align-items: center; gap: 10px; margin: 2px 0 6px 30px; }
+.inline-field input { width: auto; min-height: 38px; }
+.bio-btn { margin-top: 16px; }
+.small-empty { padding: 24px 12px; }
+.card p + p { margin-top: 6px; }
+.kv .link { margin-inline-start: 6px; }

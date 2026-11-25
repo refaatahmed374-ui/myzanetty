@@ -2,10 +2,14 @@
 import { monthKeyOf, yearOf, monthsOfYear, currentMonthKey, shiftMonth, monthLabel, money, pct, num, int } from './format.js';
 
 export const isIncome = (t) => t.type === 'income';
+export const isExpense = (t) => t.type === 'expense';
 
+/** التحويلات بين الحسابات لا تُحسب إيراداً ولا مصروفاً */
 export function summarize(list) {
-  let inc = 0, exp = 0, inc2 = 0, exp2 = 0;
+  let inc = 0, exp = 0, inc2 = 0, exp2 = 0, count = 0;
   for (const t of list) {
+    if (t.type === 'transfer') continue;
+    count++;
     if (isIncome(t)) {
       inc += t.amount;
       inc2 += t.amount2;
@@ -15,11 +19,11 @@ export function summarize(list) {
     }
   }
   const net = inc - exp;
-  return { inc, exp, net, inc2, exp2, net2: inc2 - exp2, count: list.length, saveRate: inc > 0 ? (net / inc) * 100 : 0 };
+  return { inc, exp, net, inc2, exp2, net2: inc2 - exp2, count, saveRate: inc > 0 ? (net / inc) * 100 : 0 };
 }
 
 /** فلترة حسب الفترة: period = {year:'all'|number, month:'all'|'YYYY-MM'} */
-export function filterTx(list, { year = 'all', month = 'all', catId = 'all', type = 'all', q = '' } = {}) {
+export function filterTx(list, { year = 'all', month = 'all', catId = 'all', type = 'all', q = '', accountId = 'all' } = {}) {
   const query = q.trim().toLowerCase();
   return list.filter(
     (t) =>
@@ -27,6 +31,7 @@ export function filterTx(list, { year = 'all', month = 'all', catId = 'all', typ
       (month === 'all' || monthKeyOf(t.date) === month) &&
       (catId === 'all' || t.catId === catId) &&
       (type === 'all' || t.type === type) &&
+      (accountId === 'all' || t.accountId === accountId || t.toAccountId === accountId) &&
       (!query || t.desc.toLowerCase().includes(query) || (t.note || '').toLowerCase().includes(query)),
   );
 }
@@ -61,7 +66,7 @@ export function monthlySeries(list, year) {
 export function byCategory(list, categories, type) {
   const map = new Map();
   for (const t of list) {
-    if (type && t.type !== type) continue;
+    if ((type && t.type !== type) || t.type === 'transfer') continue;
     if (!map.has(t.catId)) map.set(t.catId, { catId: t.catId, total: 0, total2: 0, count: 0, items: new Map() });
     const e = map.get(t.catId);
     e.total += t.amount;
@@ -81,7 +86,7 @@ export function byCategory(list, categories, type) {
 
 export function topExpenses(list, n = 6) {
   const m = new Map();
-  for (const t of list) if (!isIncome(t)) m.set(t.desc || '—', (m.get(t.desc || '—') || 0) + t.amount);
+  for (const t of list) if (isExpense(t)) m.set(t.desc || '—', (m.get(t.desc || '—') || 0) + t.amount);
   return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
@@ -125,7 +130,7 @@ export function forecast(list, year, { incGrowth = 0, expGrowth = 0 } = {}) {
 
 /** متابعة الميزانية لفئات المصروفات التي لها حد شهري */
 export function budgetStatus(list, categories, monthKey) {
-  const rows = list.filter((t) => monthKeyOf(t.date) === monthKey && !isIncome(t));
+  const rows = list.filter((t) => monthKeyOf(t.date) === monthKey && isExpense(t));
   return categories
     .filter((c) => c.type === 'expense' && c.budget > 0)
     .map((c) => {
@@ -180,8 +185,8 @@ export function insights(list, categories, settings, year) {
 
 /** مقارنة شهرين */
 export function compareMonths(list, categories, k1, k2) {
-  const r1 = list.filter((t) => monthKeyOf(t.date) === k1);
-  const r2 = list.filter((t) => monthKeyOf(t.date) === k2);
+  const r1 = list.filter((t) => monthKeyOf(t.date) === k1 && t.type !== 'transfer');
+  const r2 = list.filter((t) => monthKeyOf(t.date) === k2 && t.type !== 'transfer');
   const s1 = summarize(r1), s2 = summarize(r2);
   const ids = [...new Set([...r1, ...r2].map((t) => t.catId))];
   const cats = ids.map((id) => {
@@ -205,4 +210,106 @@ export function goalPlan(g) {
   const [cy, cm] = currentMonthKey().split('-').map(Number);
   const monthsLeft = (y - cy) * 12 + (m - cm) + 1;
   return { remaining, monthsLeft, perMonth: monthsLeft > 0 ? remaining / monthsLeft : null };
+}
+
+/** رصيد كل حساب = الرصيد الافتتاحي + الإيرادات − المصروفات ± التحويلات (بعملة الحساب) */
+export function accountBalances(list, accounts) {
+  const bal = new Map(accounts.map((a) => [a.id, Number(a.opening) || 0]));
+  const curOf = new Map(accounts.map((a) => [a.id, a.cur]));
+  const val = (t, accId) => (curOf.get(accId) === 'cur2' ? t.amount2 : t.amount);
+  const first = accounts[0]?.id;
+  const add = (id, v) => {
+    const k = bal.has(id) ? id : first;
+    if (k) bal.set(k, (bal.get(k) || 0) + v);
+  };
+  for (const t of list) {
+    if (t.type === 'transfer') {
+      add(t.accountId, -val(t, t.accountId));
+      add(t.toAccountId, val(t, t.toAccountId));
+    } else add(t.accountId, t.type === 'income' ? val(t, t.accountId) : -val(t, t.accountId));
+  }
+  return accounts.map((a) => ({ acc: a, balance: bal.get(a.id) || 0 }));
+}
+
+const median = (arr) => {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+/**
+ * تحليل ذكي لشهر معيّن (بدون أي خدمة خارجية — كل الحساب على الجهاز):
+ * - تغيّر كل فئة مقارنة بمتوسط آخر 3 أشهر
+ * - مصروفات غير معتادة مقارنة بتاريخ نفس البند
+ * - بنود تتكرر كل شهر ويمكن تحويلها لعمليات متكررة
+ * - توقع مصروف الشهر الحالي حسب معدل الصرف اليومي
+ * - فرصة توفير
+ */
+export function analyze(list, categories, monthKey, recurring = []) {
+  const months = monthsWithData(list).filter((k) => k < monthKey).slice(-3);
+  const cur = list.filter((t) => monthKeyOf(t.date) === monthKey && isExpense(t));
+  const prev = list.filter((t) => months.includes(monthKeyOf(t.date)) && isExpense(t));
+  const n = months.length || 1;
+
+  // 1) تغيّر الفئات
+  const catIds = [...new Set([...cur, ...prev].map((t) => t.catId))];
+  const catChanges = catIds
+    .map((id) => {
+      const now = cur.filter((t) => t.catId === id).reduce((s, t) => s + t.amount, 0);
+      const avg = prev.filter((t) => t.catId === id).reduce((s, t) => s + t.amount, 0) / n;
+      return { cat: categories.find((c) => c.id === id), catId: id, now, avg, diff: now - avg, pct: avg > 0 ? ((now - avg) / avg) * 100 : null };
+    })
+    .filter((c) => months.length && (c.now > 0 || c.avg > 0))
+    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+  // 2) مصروفات غير معتادة
+  const unusual = cur
+    .map((t) => {
+      const hist = list.filter((x) => x.desc === t.desc && isExpense(x) && x.id !== t.id && x.date < t.date).map((x) => x.amount);
+      const med = median(hist);
+      return { t, med, ratio: med > 0 ? t.amount / med : null, hist: hist.length };
+    })
+    .filter((u) => u.hist >= 2 && u.ratio >= 1.5)
+    .sort((a, b) => b.t.amount - b.med - (a.t.amount - a.med))
+    .slice(0, 5);
+
+  // 3) بنود متكررة غير مسجلة كعمليات متكررة
+  const last4 = monthsWithData(list).filter((k) => k <= monthKey).slice(-4);
+  const recDescs = new Set(recurring.filter((r) => r.active).map((r) => r.desc));
+  const byDesc = new Map();
+  for (const t of list) {
+    if (t.type === 'transfer' || t.recurringId || !last4.includes(monthKeyOf(t.date))) continue;
+    if (!byDesc.has(t.desc)) byDesc.set(t.desc, new Map());
+    byDesc.get(t.desc).set(monthKeyOf(t.date), t);
+  }
+  const candidates = [...byDesc.entries()]
+    .filter(([d, m]) => d && m.size >= 3 && !recDescs.has(d))
+    .map(([desc, m]) => {
+      const txs = [...m.values()].sort((a, b) => b.date.localeCompare(a.date));
+      const amounts = txs.map((t) => t.amount);
+      const stable = Math.max(...amounts) - Math.min(...amounts) <= median(amounts) * 0.15;
+      return { desc, last: txs[0], months: m.size, stable };
+    })
+    .sort((a, b) => b.months - a.months || b.last.amount - a.last.amount)
+    .slice(0, 6);
+
+  // 4) معدل الصرف في الشهر الحالي
+  let pace = null;
+  if (monthKey === currentMonthKey()) {
+    const [y, m] = monthKey.split('-').map(Number);
+    const daysIn = new Date(y, m, 0).getDate();
+    const day = new Date().getDate();
+    const variable = cur.filter((t) => !t.recurringId && !t.debtId);
+    const spent = variable.reduce((s, t) => s + t.amount, 0);
+    const fixed = cur.filter((t) => t.recurringId || t.debtId).reduce((s, t) => s + t.amount, 0);
+    const avgPrev = prev.reduce((s, t) => s + t.amount, 0) / n;
+    if (day >= 3 && spent > 0) pace = { spent, fixed, projected: fixed + (spent / day) * daysIn, avgPrev: months.length ? avgPrev : null, day, daysIn };
+  }
+
+  // 5) فرصة توفير: أكبر فئة مصروفات متغيرة
+  const top = byCategory(cur.filter((t) => !t.debtId), categories, 'expense')[0];
+  const saving = top && top.total > 0 ? { cat: top.cat, catId: top.catId, total: top.total, save10: top.total * 0.1 } : null;
+
+  return { months, catChanges, unusual, candidates, pace, saving };
 }

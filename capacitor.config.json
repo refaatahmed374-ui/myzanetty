@@ -12,7 +12,16 @@
       "initialViewportFitValueHint": "cover"
     },
     "SocialLogin": {
-      "providers": { "google": true, "facebook": false, "apple": false, "twitter": false }
+      "providers": {
+        "google": true,
+        "facebook": false,
+        "apple": false,
+        "twitter": false
+      }
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_notify",
+      "iconColor": "#0F766E"
     }
   }
 }

@@ -1,14 +1,15 @@
-import { state, sortedCategories, copyMonth, exportCSV, catName } from '../core/store.js';
+import { state, sortedCategories, copyMonth, exportCSV, catName, accountsList } from '../core/store.js';
+import { openRecurringList } from '../ui/recurring.js';
 import { filterTx, summarize, sortByDateDesc, monthsWithData } from '../core/calc.js';
 import { esc, money, signedMoney, num, monthLabel, monthKeyOf, currentMonthKey, shiftMonth, todayISO } from '../core/format.js';
 import { view, txRow, yearSelect, syncPeriod } from '../ui/parts.js';
 import { emptyState, options, openSheet, toast, saveFile, preserveFocus, $, $$ } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
-const local = { q: '', catId: 'all', type: 'all', limit: 150 };
+const local = { q: '', catId: 'all', type: 'all', accountId: 'all', limit: 150 };
 
 function current() {
-  return sortByDateDesc(filterTx(state.transactions, { year: view.year, month: view.month, catId: local.catId, type: local.type, q: local.q }));
+  return sortByDateDesc(filterTx(state.transactions, { year: view.year, month: view.month, catId: local.catId, type: local.type, accountId: local.accountId, q: local.q }));
 }
 
 function listHTML(list) {
@@ -94,6 +95,7 @@ export default {
       } else if (k === 'month') view.month = e.target.value;
       else if (k === 'cat') local.catId = e.target.value;
       else if (k === 'type') local.type = e.target.value;
+      else if (k === 'acc') local.accountId = e.target.value;
       local.limit = 150;
       ctx.rerender();
     });
@@ -103,11 +105,12 @@ export default {
         local.limit += 300;
         ctx.rerender();
       } else if (act === 'copy-month') openCopyMonth();
+      else if (act === 'recurring') openRecurringList();
       else if (act === 'export') {
         await saveFile(`ميزانيتي-${todayISO()}.csv`, exportCSV(current()), 'text/csv');
         toast('تم تصدير الملف');
       } else if (act === 'clear-filters') {
-        Object.assign(local, { q: '', catId: 'all', type: 'all' });
+        Object.assign(local, { q: '', catId: 'all', type: 'all', accountId: 'all' });
         view.month = 'all';
         ctx.rerender();
       }
@@ -115,17 +118,18 @@ export default {
   },
   render(root) {
     if (!state.transactions.length) {
-      root.innerHTML = emptyState('list-details', 'لا توجد عمليات بعد', 'اضغط زر + لإضافة أول عملية', `<button class="btn btn-primary" data-act="add-tx">${icon('plus')} إضافة عملية</button>`);
+      root.innerHTML = emptyState('list-details', 'لا توجد عمليات بعد', 'اضغط زر + لإضافة أول عملية، أو جهّز إيراداتك والتزاماتك الثابتة كعمليات متكررة.', `<div class="empty-actions"><button class="btn btn-primary" data-act="add-tx">${icon('plus')} إضافة عملية</button><button class="btn btn-ghost" data-act="recurring">${icon('refresh')} العمليات المتكررة</button></div>`);
       return;
     }
     const monthsOfYear = monthsWithData(state.transactions).filter((k) => view.year === 'all' || k.startsWith(String(view.year)));
     const list = current();
-    const filtered = local.q || local.catId !== 'all' || local.type !== 'all' || view.month !== 'all';
+    const filtered = local.q || local.catId !== 'all' || local.type !== 'all' || local.accountId !== 'all' || view.month !== 'all';
     preserveFocus(root, () => {
       root.innerHTML = `
         <div class="toolbar">
           <label class="search">${icon('search')}<input id="tx-q" type="search" placeholder="بحث في البيان والملاحظات…" value="${esc(local.q)}" autocomplete="off"></label>
           <div class="toolbar-actions">
+            <button class="btn btn-ghost btn-sm" data-act="recurring" title="العمليات المتكررة">${icon('refresh')}<span>المتكررة${state.recurring.filter((r) => r.active).length ? ` (${num(state.recurring.filter((r) => r.active).length)})` : ''}</span></button>
             <button class="btn btn-ghost btn-sm" data-act="copy-month" title="نسخ عمليات شهر">${icon('copy')}<span>نسخ شهر</span></button>
             <button class="btn btn-ghost btn-sm" data-act="export" title="تصدير CSV">${icon('download')}<span>تصدير</span></button>
           </div>
@@ -134,7 +138,8 @@ export default {
           ${yearSelect('tx-year', true)}
           <select class="select" data-change="month" aria-label="الشهر">${options([['all', 'كل الشهور'], ...monthsOfYear.slice().reverse().map((k) => [k, monthLabel(k)])], view.month)}</select>
           <select class="select" data-change="cat" aria-label="الفئة">${options([['all', 'كل الفئات'], ...sortedCategories().map((c) => [c.id, c.name])], local.catId)}</select>
-          <select class="select" data-change="type" aria-label="النوع">${options([['all', 'الكل'], ['income', 'إيرادات'], ['expense', 'مصروفات']], local.type)}</select>
+          <select class="select" data-change="type" aria-label="النوع">${options([['all', 'الكل'], ['income', 'إيرادات'], ['expense', 'مصروفات'], ...(accountsList().length > 1 ? [['transfer', 'تحويلات']] : [])], local.type)}</select>
+          ${accountsList().length > 1 ? `<select class="select" data-change="acc" aria-label="الحساب">${options([['all', 'كل الحسابات'], ...accountsList().map((a) => [a.id, a.name])], local.accountId)}</select>` : ''}
           ${filtered ? `<button class="link" data-act="clear-filters">مسح الفلاتر</button>` : ''}
         </div>
         <div class="sum-line" id="tx-sum">${summaryHTML(list)}</div>

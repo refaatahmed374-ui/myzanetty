@@ -92,15 +92,25 @@ export function confirmDialog({ title = 'تأكيد', text = '', ok = 'تأكي�
 }
 
 // ---------- الملفات ----------
+function bytesToBase64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+/** حفظ ملف: content نص أو Uint8Array (للملفات الثنائية مثل PDF) */
 export async function saveFile(name, content, mime = 'text/plain') {
+  const binary = content instanceof Uint8Array;
   if (isNative) {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
     const { Share } = await import('@capacitor/share');
-    const res = await Filesystem.writeFile({ path: name, data: content, directory: Directory.Cache, encoding: Encoding.UTF8 });
+    const res = binary
+      ? await Filesystem.writeFile({ path: name, data: bytesToBase64(content), directory: Directory.Cache })
+      : await Filesystem.writeFile({ path: name, data: content, directory: Directory.Cache, encoding: Encoding.UTF8 });
     await Share.share({ title: name, files: [res.uri], dialogTitle: 'حفظ / مشاركة الملف' });
     return;
   }
-  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+  const blob = new Blob([content], { type: binary ? mime : `${mime};charset=utf-8` });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;

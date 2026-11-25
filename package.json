@@ -1,7 +1,7 @@
 {
   "name": "myzanetty",
   "private": true,
-  "version": "2.0.2",
+  "version": "2.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,11 +17,15 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.6.2",
     "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.3",
+    "@capgo/capacitor-native-biometric": "^8.9.3",
     "@capgo/capacitor-social-login": "^8.7.13",
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
     "chart.js": "^4.6.2",
-    "firebase": "^13.4.0"
+    "firebase": "^13.4.0",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1"
   },
   "devDependencies": {
     "@capacitor/assets": "^4.0.0",

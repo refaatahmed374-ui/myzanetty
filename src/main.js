@@ -7,7 +7,11 @@ import '@fontsource/ibm-plex-sans-arabic/latin-600.css';
 import './styles.css';
 import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 
-import { state, subscribe, useLocal, useBackend, loadPrefs, readLocalData, clearLocalData } from './core/store.js';
+import { state, subscribe, useLocal, useBackend, loadPrefs, readLocalData, clearLocalData, applyRecurring, DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS } from './core/store.js';
+import { maybeUpdateRate } from './core/rates.js';
+import { rescheduleSoon, onNotificationTap } from './core/notify.js';
+import { updateWidgetSoon } from './core/widget.js';
+import { todayISO } from './core/format.js';
 import { isLockEnabled, removePin } from './core/lock.js';
 import { icon } from './ui/icons.js';
 import { $, $$, toast, confirmDialog, closeTopSheet, isNative } from './ui/dom.js';
@@ -145,7 +149,32 @@ subscribe(() => {
   applyTheme();
   renderSyncChip();
   scheduleRender();
+  rescheduleSoon();
+  updateWidgetSoon();
 });
+
+// ---------- مهام دورية: العمليات المتكررة + سعر الصرف ----------
+let maintTimer = 0;
+let maintTries = 0;
+let maintDay = '';
+function scheduleMaintenance(delay = 2500) {
+  clearTimeout(maintTimer);
+  maintTimer = setTimeout(runMaintenance, delay);
+}
+async function runMaintenance() {
+  if (!state.ready) return scheduleMaintenance(1500);
+  // في وضع السحابة ننتظر أول مزامنة من الخادم حتى لا نعتمد على نسخة قديمة
+  if (state.mode === 'cloud' && state.sync === 'syncing' && maintTries++ < 6) return scheduleMaintenance(2000);
+  maintTries = 0;
+  maintDay = todayISO();
+  try {
+    const n = await applyRecurring();
+    if (n) toast(`تمت إضافة ${n} عملية متكررة مستحقة`, 'ok', 4000);
+  } catch (e) {
+    console.warn('recurring', e);
+  }
+  maybeUpdateRate().catch((e) => console.warn('rate', e));
+}
 
 // ---------- الحساب والسحابة ----------
 let cloud = null;
@@ -182,6 +211,7 @@ async function startCloud() {
     if (!user) {
       try { localStorage.setItem(MODE_KEY, 'local'); } catch {}
       useLocal();
+      scheduleMaintenance();
       return;
     }
     try { localStorage.setItem(MODE_KEY, 'cloud'); } catch {}
@@ -197,7 +227,8 @@ async function startCloud() {
     }
     const a = cloud.attach(user.uid);
     detach = a.detach;
-    useBackend(a.backend, { mode: 'cloud', user: profile, transactions: [], goals: [], ready: true });
+    useBackend(a.backend, { mode: 'cloud', user: profile, transactions: [], goals: [], recurring: [], debts: [], categories: structuredClone(DEFAULT_CATEGORIES), accounts: structuredClone(DEFAULT_ACCOUNTS), ready: true });
+    scheduleMaintenance(3000);
   });
 }
 
@@ -257,7 +288,10 @@ async function forgotPin() {
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) hiddenAt = Date.now();
-  else if (isLockEnabled() && hiddenAt && Date.now() - hiddenAt > 60_000) showLockScreen({ onForgot: forgotPin });
+  else {
+    if (isLockEnabled() && hiddenAt && Date.now() - hiddenAt > 60_000) showLockScreen({ onForgot: forgotPin });
+    if (maintDay && maintDay !== todayISO()) scheduleMaintenance(1000);
+  }
 });
 
 // ---------- أندرويد ----------
@@ -265,6 +299,13 @@ async function setupNative() {
   if (!isNative) return;
   document.documentElement.classList.add('native');
   const { App } = await import('@capacitor/app');
+  // زر "+" في الودجت يفتح التطبيق على رابط myzanetty://add
+  const handleUrl = (url) => {
+    if (String(url || '').startsWith('myzanetty://add')) setTimeout(() => openTxForm(), 400);
+  };
+  App.addListener('appUrlOpen', (e) => handleUrl(e.url));
+  App.getLaunchUrl().then((r) => handleUrl(r?.url)).catch(() => {});
+  onNotificationTap(() => setTimeout(() => openTxForm(), 400));
   App.addListener('backButton', () => {
     if (closeTopSheet()) return;
     const path = location.hash.replace(/^#/, '') || '/';
@@ -298,7 +339,10 @@ if (lastMode === 'cloud') {
   state.mode = 'cloud';
   state.sync = 'syncing';
   state.ready = false; // ننتظر Firebase حتى لا تظهر بيانات خاطئة للحظة
-} else useLocal();
+} else {
+  useLocal();
+  scheduleMaintenance();
+}
 
 if (!location.hash) history.replaceState(null, '', '#/');
 route();

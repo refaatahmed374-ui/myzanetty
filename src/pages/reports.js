@@ -1,9 +1,11 @@
 import { state, catName, catColor } from '../core/store.js';
-import { summarize, filterTx, monthlySeries, byCategory, compareMonths, cumulative, forecast, monthsWithData, sortByDateDesc, previousMonthWithData } from '../core/calc.js';
-import { esc, money, money2, num, pct, signed, monthLabel, monthName, monthKeyOf, int } from '../core/format.js';
+import { recurringForm } from '../ui/recurring.js';
+import { exportPdfReport } from '../ui/pdfReport.js';
+import { summarize, filterTx, monthlySeries, byCategory, compareMonths, cumulative, forecast, monthsWithData, sortByDateDesc, previousMonthWithData, analyze, yearsWithData } from '../core/calc.js';
+import { esc, money, money2, num, pct, signed, monthLabel, monthName, monthKeyOf, int, currentMonthKey, dateLabel } from '../core/format.js';
 import { view, summaryKpis, kpi, txRow, bar, card, yearSelect } from '../ui/parts.js';
 import { drawChart, themeColors } from '../ui/charts.js';
-import { emptyState, options, $ } from '../ui/dom.js';
+import { emptyState, options, openSheet, $ } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
 const TABS = [
@@ -12,8 +14,68 @@ const TABS = [
   ['compare', 'مقارنة', 'arrows-diff'],
   ['cashflow', 'التدفق', 'chart-line'],
   ['forecast', 'التوقعات', 'crystal-ball'],
+  ['analysis', 'تحليل ذكي', 'bulb'],
 ];
-const local = { tab: 'monthly', month: null, m1: null, m2: null, incG: 0, expG: 0 };
+const local = { tab: 'monthly', month: null, m1: null, m2: null, incG: 0, expG: 0, aMonth: null };
+
+// ---------- تحليل ذكي ----------
+function analysisTab() {
+  const months = monthsWithData(state.transactions);
+  const nowKey = currentMonthKey();
+  if (!local.aMonth || !months.includes(local.aMonth)) local.aMonth = months.includes(nowKey) ? nowKey : months[months.length - 1];
+  const k = local.aMonth;
+  const a = analyze(state.transactions, state.categories, k, state.recurring);
+  const sections = [];
+  if (a.pace) {
+    const over = a.pace.avgPrev && a.pace.projected > a.pace.avgPrev;
+    sections.push(card('توقع مصروف الشهر', 'crystal-ball', `<p>صرفت حتى اليوم (${num(a.pace.day)} من ${num(a.pace.daysIn)}) <b>${money(a.pace.spent + a.pace.fixed)}</b>، منها ${money(a.pace.fixed)} التزامات ثابتة.</p>
+      <p class="big-line ${over ? 'neg' : 'pos'}">المتوقع لآخر الشهر: <b>${money(a.pace.projected)}</b></p>
+      ${a.pace.avgPrev ? `<p class="muted small">متوسط مصروفاتك في آخر ${num(a.months.length)} شهر: ${money(a.pace.avgPrev)} — ${over ? `ممكن تتخطاه بـ ${money(a.pace.projected - a.pace.avgPrev)}` : `أقل منه بـ ${money(a.pace.avgPrev - a.pace.projected)} 👍`}</p>` : ''}`));
+  }
+  if (a.catChanges.length)
+    sections.push(card(`الفئات مقارنة بمتوسط آخر ${num(a.months.length)} شهر`, 'arrows-diff', `<div class="table-wrap"><table class="tbl"><thead><tr><th>الفئة</th><th>هذا الشهر</th><th>المتوسط</th><th>التغيّر</th></tr></thead><tbody>
+      ${a.catChanges.map((c) => `<tr><td><i class="dot" style="background:${esc(catColor(c.catId))}"></i>${esc(catName(c.catId))}</td><td>${num(c.now)}</td><td>${num(c.avg)}</td><td><span class="pill ${c.diff > 0 ? 'neg' : 'pos'}">${c.pct === null ? 'جديد' : signed(c.pct) + '%'}</span></td></tr>`).join('')}
+    </tbody></table></div>`));
+  if (a.unusual.length)
+    sections.push(card('مصروفات أعلى من المعتاد', 'alert-triangle', a.unusual.map((u) => `<div class="kv"><span>${esc(u.t.desc)} <small class="muted">${dateLabel(u.t.date)}</small></span><b class="neg">${money(u.t.amount)} <small class="muted">(المعتاد ${money(u.med)})</small></b></div>`).join('')));
+  if (a.candidates.length)
+    sections.push(card('بنود بتتكرر كل شهر', 'refresh', `<p class="muted small">البنود دي ظهرت في 3 شهور أو أكتر من آخر 4 شهور. خليها تتسجل لوحدها:</p>
+      ${a.candidates.map((c) => `<div class="kv"><span>${esc(c.desc)} <small class="muted">${num(c.months)} شهور${c.stable ? ' · مبلغ ثابت' : ''}</small></span><button class="btn btn-ghost btn-sm" data-act="make-rec" data-id="${esc(c.last.id)}">${icon('refresh')} اجعلها متكررة</button></div>`).join('')}`));
+  if (a.saving)
+    sections.push(card('فرصة توفير', 'pig-money', `<p>أكبر بند صرف متغير الشهر ده هو <b>«${esc(catName(a.saving.catId))}»</b> بإجمالي ${money(a.saving.total)}.</p>
+      <p>لو قللته 10% بس هتوفر <b class="pos">${money(a.saving.save10)}</b> في الشهر = <b class="pos">${money(a.saving.save10 * 12)}</b> في السنة.</p>`));
+  return `<div class="period"><select class="select" data-change="aMonth" aria-label="الشهر">${options(months.slice().reverse().map((m) => [m, monthLabel(m)]), k)}</select></div>
+    ${sections.join('') || emptyState('bulb', 'لا توجد بيانات كافية للتحليل', 'سجّل عملياتك لشهرين على الأقل لتظهر المقارنات والاقتراحات.')}
+    <p class="muted small center">كل التحليل بيتم على جهازك — بياناتك مش بتتبعت لأي خدمة خارجية.</p>`;
+}
+
+function openPdfDialog() {
+  const months = monthsWithData(state.transactions).slice().reverse();
+  const years = yearsWithData(state.transactions);
+  const sheet = openSheet({
+    title: 'تقرير PDF',
+    size: 'sheet-sm',
+    body: `<div class="seg"><label class="seg-opt"><input type="radio" name="pk" value="month" checked><span>شهري</span></label><label class="seg-opt"><input type="radio" name="pk" value="year"><span>سنوي</span></label></div>
+      <label class="field" id="pdf-m"><span>الشهر</span><select class="select wide" id="pdf-month">${options(months.map((m) => [m, monthLabel(m)]), local.month || months[0])}</select></label>
+      <label class="field" id="pdf-y" hidden><span>السنة</span><select class="select wide" id="pdf-year">${options(years.map((y) => [y, int(y)]), years[0])}</select></label>
+      <p class="muted small">التقرير فيه الملخص والفئات والميزانيات والحسابات والأقساط، والتقرير الشهري فيه كمان كل عمليات الشهر.</p>`,
+    footer: `<button class="btn btn-primary" data-act="go">${icon('download')} إنشاء التقرير</button>`,
+  });
+  const el = sheet.el;
+  el.addEventListener('change', (e) => {
+    if (e.target.name === 'pk') {
+      $('#pdf-m', el).hidden = e.target.value !== 'month';
+      $('#pdf-y', el).hidden = e.target.value !== 'year';
+    }
+  });
+  el.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-act=go]')) return;
+    const kind = el.querySelector('input[name=pk]:checked').value;
+    const period = kind === 'month' ? { month: $('#pdf-month', el).value } : { year: Number($('#pdf-year', el).value) };
+    sheet.close();
+    exportPdfReport(period);
+  });
+}
 
 function yearOrCurrent() {
   return view.year === 'all' ? new Date().getFullYear() : view.year;
@@ -192,6 +254,17 @@ export default {
   title: 'التقارير',
   mount(root, ctx) {
     root.addEventListener('click', (e) => {
+      const actEl = e.target.closest('[data-act]');
+      if (actEl?.dataset.act === 'pdf') return openPdfDialog();
+      if (actEl?.dataset.act === 'make-rec') {
+        const tx = state.transactions.find((x) => x.id === actEl.dataset.id);
+        if (tx) {
+          // لو المبلغ بالعملة الثانية رقم مُدوَّر غالباً هو المبلغ الثابت (مثل إيجار 3000 ج.م)
+          const fixedIn = tx.amount2 % 50 === 0 && tx.amount % 1 !== 0 ? 'cur2' : 'cur1';
+          recurringForm({ desc: tx.desc, catId: tx.catId, accountId: tx.accountId, fixedIn, amount: fixedIn === 'cur2' ? tx.amount2 : tx.amount, day: Number(tx.date.slice(8, 10)) }, () => ctx.rerender());
+        }
+        return;
+      }
       const t = e.target.closest('[data-tab]');
       if (t) {
         local.tab = t.dataset.tab;
@@ -223,8 +296,15 @@ export default {
       root.innerHTML = emptyState('chart-histogram', 'لا توجد بيانات للتقارير بعد', 'أضف عملياتك أولاً لتظهر التقارير هنا');
       return;
     }
-    const body = { monthly, categories, compare, cashflow, forecast: forecastTab }[local.tab]();
+    const q = location.hash.split('?')[1];
+    const want = q && new URLSearchParams(q).get('tab');
+    if (want && TABS.some(([k]) => k === want)) {
+      local.tab = want;
+      history.replaceState(null, '', '#/reports');
+    }
+    const body = { monthly, categories, compare, cashflow, forecast: forecastTab, analysis: analysisTab }[local.tab]();
     root.innerHTML = `
+      <div class="page-actions end"><button class="btn btn-ghost btn-sm" data-act="pdf">${icon('download')} تقرير PDF</button></div>
       <nav class="tabs" role="tablist">${TABS.map(([k, l, ic]) => `<button role="tab" aria-selected="${local.tab === k}" class="tab ${local.tab === k ? 'active' : ''}" data-tab="${k}">${icon(ic)}<span>${l}</span></button>`).join('')}</nav>
       <div class="tab-body">${body}</div>`;
     drawFor(root);

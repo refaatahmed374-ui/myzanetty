@@ -1,5 +1,5 @@
 import { esc, money, money2, signedMoney, num, pct, dateLabel, monthLabel, MONTHS, int, monthKeyOf } from '../core/format.js';
-import { catName, catColor, state } from '../core/store.js';
+import { catName, catColor, state, accountsList, accountName } from '../core/store.js';
 import { yearsWithData, monthsWithData } from '../core/calc.js';
 import { icon } from './icons.js';
 import { options } from './dom.js';
@@ -29,14 +29,20 @@ export function summaryKpis(s) {
 
 export function txRow(t, { showDate = true } = {}) {
   const inc = t.type === 'income';
+  const tr = t.type === 'transfer';
+  const multi = accountsList().length > 1;
+  const meta = tr
+    ? `${esc(accountName(t.accountId))} ← ${esc(accountName(t.toAccountId))}`
+    : `${esc(catName(t.catId))}${multi ? ` · ${esc(accountName(t.accountId))}` : ''}`;
+  const badges = `${t.recurringId ? icon('refresh', 'mini') : ''}${t.debtId ? icon('cash', 'mini') : ''}`;
   return `<button class="tx" data-act="edit-tx" data-id="${esc(t.id)}">
-    <span class="tx-dot" style="--c:${esc(catColor(t.catId))}">${icon(inc ? 'trending-up' : 'receipt')}</span>
+    <span class="tx-dot" style="--c:${esc(catColor(t.catId))}">${icon(tr ? 'arrows-diff' : inc ? 'trending-up' : 'receipt')}</span>
     <span class="tx-main">
-      <span class="tx-desc">${esc(t.desc || catName(t.catId))}</span>
-      <span class="tx-meta">${esc(catName(t.catId))}${showDate ? ` · ${dateLabel(t.date)}` : ''}${t.note ? ` · ${esc(t.note)}` : ''}</span>
+      <span class="tx-desc">${esc(t.desc || catName(t.catId))}${badges}</span>
+      <span class="tx-meta">${meta}${showDate ? ` · ${dateLabel(t.date)}` : ''}${t.note ? ` · ${esc(t.note)}` : ''}</span>
     </span>
-    <span class="tx-amt ${inc ? 'pos' : 'neg'}">
-      <b>${signedMoney(t.amount, 2, inc ? '+' : '-')}</b>
+    <span class="tx-amt ${tr ? 'muted' : inc ? 'pos' : 'neg'}">
+      <b>${tr ? money(t.amount, 2) : signedMoney(t.amount, 2, inc ? '+' : '-')}</b>
       <small>${money2(t.amount2)}</small>
     </span>
   </button>`;

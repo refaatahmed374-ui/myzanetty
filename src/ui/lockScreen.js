@@ -2,6 +2,38 @@ import { verifyPin, lockoutSeconds } from '../core/lock.js';
 import { openSheet, $ } from './dom.js';
 import { icon } from './icons.js';
 import { num } from '../core/format.js';
+import { state } from '../core/store.js';
+import { Capacitor } from '@capacitor/core';
+
+// ---------- البصمة / الوجه (أندرويد) ----------
+let bioPlugin = null;
+async function bio() {
+  if (!Capacitor.isNativePlatform()) return null;
+  bioPlugin ||= (await import('@capgo/capacitor-native-biometric')).NativeBiometric;
+  return bioPlugin;
+}
+
+export async function bioAvailable() {
+  try {
+    const p = await bio();
+    if (!p) return false;
+    const r = await p.isAvailable({ useFallback: false });
+    return !!r?.isAvailable;
+  } catch {
+    return false;
+  }
+}
+
+export async function bioVerify(reason = 'افتح ميزانيتي') {
+  try {
+    const p = await bio();
+    if (!p) return false;
+    await p.verifyIdentity({ reason, title: 'ميزانيتي', subtitle: reason, negativeButtonText: 'استخدم الرمز', maxAttempts: 3 });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const PIN_LEN = 4;
 
@@ -65,6 +97,7 @@ export function showLockScreen({ onForgot } = {}) {
       <div class="lock-logo">${icon('lock')}</div>
       <h1>ميزانيتي</h1><p class="muted">أدخل رمز القفل</p>
       ${padHTML('<button class="pin-key text" data-forgot>نسيت؟</button>')}
+      ${state.prefs.bioUnlock ? `<button class="btn btn-ghost bio-btn" data-bio>${icon('lock')} افتح بالبصمة</button>` : ''}
     </div>`;
     document.body.appendChild(el);
     document.body.classList.add('locked');
@@ -81,7 +114,12 @@ export function showLockScreen({ onForgot } = {}) {
       if (await verifyPin(pin)) finish();
       else pad.msg(lockoutSeconds() ? `محاولات كثيرة — انتظر ${num(lockoutSeconds())} ثانية` : 'رمز غير صحيح');
     });
+    const tryBio = async () => {
+      if (state.prefs.bioUnlock && (await bioVerify())) finish();
+    };
+    if (state.prefs.bioUnlock) setTimeout(tryBio, 250);
     el.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-bio]')) return tryBio();
       if (e.target.closest('[data-forgot]') && onForgot) {
         if (await onForgot()) finish();
       }
