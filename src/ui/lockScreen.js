@@ -6,11 +6,20 @@ import { state } from '../core/store.js';
 import { Capacitor } from '@capacitor/core';
 
 // ---------- البصمة / الوجه (أندرويد) ----------
+// ملاحظة: لا نُرجع الإضافة من دالة async (كائن Proxy له .then فيتعلق الـ await للأبد)
 let bioPlugin = null;
-async function bio() {
-  if (!Capacitor.isNativePlatform()) return null;
-  bioPlugin ||= (await import('@capgo/capacitor-native-biometric')).NativeBiometric;
-  return bioPlugin;
+async function bioReady() {
+  if (!Capacitor.isNativePlatform()) return false;
+  if (!bioPlugin) {
+    const mod = await import('@capgo/capacitor-native-biometric');
+    bioPlugin = mod.NativeBiometric;
+  }
+  return true;
+}
+
+/** مهلة أمان: لو الجهاز لم يرد خلال المدة نعتبرها فشلاً بدل التعليق */
+function withTimeout(promise, ms, message) {
+  return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
 }
 
 const BIO_ERRORS = {
@@ -31,8 +40,8 @@ export const bioErrorText = (code, fallback = '') => BIO_ERRORS[Number(code)] ||
 export async function bioStatus() {
   if (!Capacitor.isNativePlatform()) return { native: false, available: false, deviceSecure: false, reason: 'متاحة في تطبيق أندرويد فقط' };
   try {
-    const p = await bio();
-    const r = await p.isAvailable({ useFallback: false });
+    await bioReady();
+    const r = await withTimeout(bioPlugin.isAvailable({ useFallback: false }), 6000, 'الموبايل لم يرد على فحص البصمة');
     return { native: true, available: !!r?.isAvailable, deviceSecure: !!r?.deviceIsSecure, reason: r?.isAvailable ? '' : bioErrorText(r?.errorCode) };
   } catch (e) {
     return { native: true, available: false, deviceSecure: false, reason: e?.message || BIO_ERRORS[0] };
@@ -56,12 +65,11 @@ export const bioLastError = () => lastBioError;
 export async function bioVerify(reason = 'افتح ميزانيتي', { allowDevice = false } = {}) {
   lastBioError = '';
   try {
-    const p = await bio();
-    if (!p) return false;
+    if (!(await bioReady())) return false;
     const opts = { reason, title: 'ميزانيتي', subtitle: reason, maxAttempts: 5 };
     if (allowDevice) opts.allowedBiometryTypes = [3, 4, 5, 7]; // بصمة، وجه، قزحية، رمز الموبايل
     else opts.negativeButtonText = 'إلغاء';
-    await p.verifyIdentity(opts);
+    await bioPlugin.verifyIdentity(opts);
     return true;
   } catch (e) {
     lastBioError = bioErrorText(e?.code, e?.message);

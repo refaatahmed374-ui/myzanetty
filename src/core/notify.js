@@ -8,24 +8,26 @@ const DAILY_ID = 1000;
 const DUE_BASE = 2000;
 const CHANNEL = 'reminders';
 
+// ملاحظة: لا نُرجع الإضافة من دالة async (كائن Proxy له .then فيتعلق الـ await للأبد)
 let LN = null;
-async function plugin() {
-  if (!isNative) return null;
+async function ready() {
+  if (!isNative) return false;
   if (!LN) {
-    LN = (await import('@capacitor/local-notifications')).LocalNotifications;
+    const mod = await import('@capacitor/local-notifications');
+    LN = mod.LocalNotifications;
     try {
       await LN.createChannel({ id: CHANNEL, name: 'التذكيرات', description: 'تذكير يومي ومواعيد الأقساط', importance: 4, visibility: 1 });
     } catch {}
   }
-  return LN;
+  return true;
 }
 
 export const notificationsSupported = () => isNative;
 
 /** طلب إذن الإشعارات. يرجع true لو مسموح */
 export async function ensurePermission() {
-  const p = await plugin();
-  if (!p) return false;
+  if (!(await ready())) return false;
+  const p = LN;
   let st = await p.checkPermissions();
   if (st.display !== 'granted') st = await p.requestPermissions();
   return st.display === 'granted';
@@ -56,8 +58,8 @@ export function rescheduleSoon() {
 
 let lastSig = '';
 async function reschedule() {
-  const p = await plugin();
-  if (!p) return;
+  if (!(await ready())) return;
+  const p = LN;
   const prefs = state.prefs;
   const items = prefs.notifyDue ? dueItems() : [];
   const sig = JSON.stringify([prefs.notifyDaily, prefs.notifyTime, items, state.settings.cur1, state.settings.cur2]);
@@ -100,8 +102,8 @@ async function reschedule() {
 
 /** فتح نموذج الإضافة عند الضغط على التذكير اليومي */
 export async function onNotificationTap(cb) {
-  const p = await plugin();
-  if (!p) return;
+  if (!(await ready())) return;
+  const p = LN;
   p.addListener('localNotificationActionPerformed', (e) => {
     if (e?.notification?.extra?.action === 'add') cb();
   });
