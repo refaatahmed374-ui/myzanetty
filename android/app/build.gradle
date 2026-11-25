@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+// رقم الإصدار يزيد تلقائياً مع كل بناء على GitHub Actions حتى يقبل الموبايل التحديث
+def appVersionCode = (System.getenv('VERSION_CODE') ?: '1').toInteger()
+def appVersionName = System.getenv('VERSION_NAME') ?: '2.0.0'
+
 android {
     namespace = "com.myzanetty.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,9 +11,8 @@ android {
         applicationId "com.myzanetty.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // رقم الإصدار يزيد تلقائياً مع كل بناء على GitHub Actions حتى يقبل الموبايل التحديث
-        versionCode (System.getenv("VERSION_CODE") ?: "1") as Integer
-        versionName System.getenv("VERSION_NAME") ?: "2.0.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
