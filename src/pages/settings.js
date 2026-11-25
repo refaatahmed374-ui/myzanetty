@@ -147,7 +147,6 @@ export default {
     root.addEventListener('change', (e) => {
       const t = e.target;
       if (t.name === 'theme') setPrefs({ theme: t.value });
-      else if (t.name === 'digits') setPrefs({ digits: t.value });
       else if (t.id === 's-cur1' || t.id === 's-cur2') {
         const v = t.value.trim().slice(0, 8);
         if (v) saveSettings({ [t.id === 's-cur1' ? 'cur1' : 'cur2']: v });
@@ -219,10 +218,6 @@ export default {
       ${card('المظهر', 'palette', `
         <div class="field"><span>السمة</span><div class="seg three">
           ${[['auto', 'تلقائي'], ['light', 'فاتح'], ['dark', 'داكن']].map(([v, l]) => `<label class="seg-opt"><input type="radio" name="theme" value="${v}" ${state.prefs.theme === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}
-        </div></div>
-        <div class="field"><span>شكل الأرقام</span><div class="seg">
-          <label class="seg-opt"><input type="radio" name="digits" value="arabic" ${state.prefs.digits !== 'latin' ? 'checked' : ''}><span>١٢٣</span></label>
-          <label class="seg-opt"><input type="radio" name="digits" value="latin" ${state.prefs.digits === 'latin' ? 'checked' : ''}><span>123</span></label>
         </div></div>`)}
 
       ${card('العملات وسعر الصرف', 'coins', `<div class="row-3">

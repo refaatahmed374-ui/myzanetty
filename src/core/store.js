@@ -15,7 +15,7 @@ export const DEFAULT_CATEGORIES = [
 /** إعدادات تتم مزامنتها مع الحساب */
 export const DEFAULT_SETTINGS = { cur1: 'ر.س', cur2: 'ج.م', rate: 14, expenseLimit: 80, minSaving: 200 };
 /** تفضيلات خاصة بهذا الجهاز فقط */
-export const DEFAULT_PREFS = { theme: 'auto', digits: 'arabic' };
+export const DEFAULT_PREFS = { theme: 'auto' };
 
 export const state = {
   transactions: [],
@@ -41,7 +41,7 @@ export function emit() {
   queued = true;
   queueMicrotask(() => {
     queued = false;
-    configureFormat({ digits: state.prefs.digits, cur1: state.settings.cur1, cur2: state.settings.cur2 });
+    configureFormat({ cur1: state.settings.cur1, cur2: state.settings.cur2 });
     listeners.forEach((fn) => fn(state));
   });
 }

@@ -98,7 +98,7 @@ export default {
       </div>
 
       ${card(`شهور ${int(view.year)}`, 'calendar-stats', `<div class="months-grid">${series.map((m) => `<button class="month-cell ${m.hasData ? (m.net >= 0 ? 'pos' : 'neg') : 'nodata'} ${m.key === nowKey ? 'now' : ''}" data-act="month" data-key="${m.key}"><b>${monthName(m.key)}</b>${m.hasData ? `<span>${signed(m.net)}</span>` : '<span>—</span>'}</button>`).join('')}</div>
-        <div class="months-foot"><span>${num(activeMonths)} من ١٢ شهراً بها بيانات</span>${progress(activeMonths / 12, 'pos')}</div>`)}
+        <div class="months-foot"><span>${num(activeMonths)} من 12 شهراً بها بيانات</span>${progress(activeMonths / 12, 'pos')}</div>`)}
     `;
 
     const c = themeColors();

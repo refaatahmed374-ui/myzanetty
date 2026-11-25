@@ -1,9 +1,9 @@
 export const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
-const fmtState = { locale: 'ar-EG', cur1: 'ر.س', cur2: 'ج.م' };
+// الأرقام في التطبيق كله غربية (123) — en-US
+const fmtState = { locale: 'en-US', cur1: 'ر.س', cur2: 'ج.م' };
 
-export function configureFormat({ digits, cur1, cur2 }) {
-  fmtState.locale = digits === 'latin' ? 'en-US' : 'ar-EG';
+export function configureFormat({ cur1, cur2 }) {
   if (cur1) fmtState.cur1 = cur1;
   if (cur2) fmtState.cur2 = cur2;
 }
@@ -32,7 +32,7 @@ export const signedMoney = (n, digits = 0, sign = n >= 0 ? '+' : '-') => `${LRI}
 export const signed = (n) => (Math.round(n) === 0 ? num(0) : `${LRI}${n > 0 ? '+' : '-'}${abs(n, 0)}${PDI}`);
 export function pct(n, digits = 0) {
   const v = Number(n) || 0;
-  return v < 0 ? `${LRI}-${abs(v, digits)}٪${PDI}` : `${abs(v, digits)}٪`;
+  return v < 0 ? `${LRI}-${abs(v, digits)}%${PDI}` : `${abs(v, digits)}%`;
 }
 
 /** تهريب أي نص يأتي من المستخدم قبل وضعه في HTML */
