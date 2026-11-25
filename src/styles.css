@@ -578,3 +578,9 @@ input[type='date'], input[type='month'] { direction: rtl; }
 .hint.err { color: var(--expense); background: var(--expense-soft); }
 #up-step .progress { height: 10px; margin-top: 6px; }
 .update-bar .icon-btn { width: 32px; height: 32px; }
+
+/* ===================== الدخول بالبصمة ===================== */
+.lock-logo.bio-big { width: 96px; height: 96px; border-radius: 30px; border: 0; cursor: pointer; animation: bio-pulse 2s ease-in-out infinite; }
+.lock-logo.bio-big .ic { width: 52px; height: 52px; }
+@keyframes bio-pulse { 50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--primary) 15%, transparent); } }
+#bio-card .btn { margin-top: 8px; }

@@ -13,4 +13,4 @@ export const firebaseConfig = {
 // (انظر README.md — قسم "تسجيل الدخول على أندرويد")
 export const GOOGLE_WEB_CLIENT_ID = '496699644075-o8cu28acaucrrdju4722k5f3ft2438co.apps.googleusercontent.com';
 
-export const APP_VERSION = '2.2.0';
+export const APP_VERSION = '2.3.0';

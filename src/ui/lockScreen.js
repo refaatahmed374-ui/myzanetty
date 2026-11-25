@@ -1,4 +1,4 @@
-import { verifyPin, lockoutSeconds } from '../core/lock.js';
+import { verifyPin, lockoutSeconds, isLockEnabled } from '../core/lock.js';
 import { openSheet, $ } from './dom.js';
 import { icon } from './icons.js';
 import { num } from '../core/format.js';
@@ -27,17 +27,20 @@ const BIO_ERRORS = {
 };
 export const bioErrorText = (code, fallback = '') => BIO_ERRORS[Number(code)] || fallback || BIO_ERRORS[0];
 
-/** حالة البصمة على الجهاز: { native, available, reason } */
+/** حالة البصمة على الجهاز: { native, available, deviceSecure, reason } */
 export async function bioStatus() {
-  if (!Capacitor.isNativePlatform()) return { native: false, available: false, reason: 'متاحة في تطبيق أندرويد فقط' };
+  if (!Capacitor.isNativePlatform()) return { native: false, available: false, deviceSecure: false, reason: 'متاحة في تطبيق أندرويد فقط' };
   try {
     const p = await bio();
     const r = await p.isAvailable({ useFallback: false });
-    return { native: true, available: !!r?.isAvailable, reason: r?.isAvailable ? '' : bioErrorText(r?.errorCode) };
+    return { native: true, available: !!r?.isAvailable, deviceSecure: !!r?.deviceIsSecure, reason: r?.isAvailable ? '' : bioErrorText(r?.errorCode) };
   } catch (e) {
-    return { native: true, available: false, reason: e?.message || BIO_ERRORS[0] };
+    return { native: true, available: false, deviceSecure: false, reason: e?.message || BIO_ERRORS[0] };
   }
 }
+
+/** هل قفل التطبيق مفعّل (برمز PIN أو بالبصمة)؟ */
+export const appLockActive = () => isLockEnabled() || (Capacitor.isNativePlatform() && !!state.prefs.bioUnlock);
 
 export async function bioAvailable() {
   return (await bioStatus()).available;
@@ -46,12 +49,19 @@ export async function bioAvailable() {
 let lastBioError = '';
 export const bioLastError = () => lastBioError;
 
-export async function bioVerify(reason = 'افتح ميزانيتي') {
+/**
+ * طلب البصمة. allowDevice = السماح برمز/نمط قفل الموبايل كبديل داخل نفس النافذة
+ * (حتى لا يُقفل المستخدم خارج التطبيق لو البصمة لم تعمل).
+ */
+export async function bioVerify(reason = 'افتح ميزانيتي', { allowDevice = false } = {}) {
   lastBioError = '';
   try {
     const p = await bio();
     if (!p) return false;
-    await p.verifyIdentity({ reason, title: 'ميزانيتي', subtitle: reason, negativeButtonText: 'استخدم الرمز', maxAttempts: 3 });
+    const opts = { reason, title: 'ميزانيتي', subtitle: reason, maxAttempts: 5 };
+    if (allowDevice) opts.allowedBiometryTypes = [3, 4, 5, 7]; // بصمة، وجه، قزحية، رمز الموبايل
+    else opts.negativeButtonText = 'إلغاء';
+    await p.verifyIdentity(opts);
     return true;
   } catch (e) {
     lastBioError = bioErrorText(e?.code, e?.message);
@@ -115,33 +125,55 @@ export function showLockScreen({ onForgot } = {}) {
   if (showing) return Promise.resolve();
   showing = true;
   return new Promise((resolve) => {
+    const hasPin = isLockEnabled();
+    const useBio = Capacitor.isNativePlatform() && !!state.prefs.bioUnlock;
     const el = document.createElement('div');
     el.className = 'lock-screen';
-    el.innerHTML = `<div class="lock-box">
-      <div class="lock-logo">${icon('lock')}</div>
-      <h1>ميزانيتي</h1><p class="muted">أدخل رمز القفل</p>
-      ${padHTML('<button class="pin-key text" data-forgot>نسيت؟</button>')}
-      ${state.prefs.bioUnlock ? `<button class="btn btn-ghost bio-btn" data-bio>${icon('lock')} افتح بالبصمة</button>` : ''}
-    </div>`;
+    el.innerHTML = hasPin
+      ? `<div class="lock-box">
+          <div class="lock-logo">${icon('lock')}</div>
+          <h1>ميزانيتي</h1><p class="muted">أدخل رمز القفل</p>
+          ${padHTML('<button class="pin-key text" data-forgot>نسيت؟</button>')}
+          ${useBio ? `<button class="btn btn-ghost bio-btn" data-bio>${icon('fingerprint')} افتح بالبصمة</button>` : ''}
+        </div>`
+      : `<div class="lock-box">
+          <button class="lock-logo bio-big" data-bio aria-label="افتح بالبصمة">${icon('fingerprint')}</button>
+          <h1>ميزانيتي</h1><p class="muted">المس حساس البصمة لفتح التطبيق</p>
+          <p class="pin-msg" role="alert"></p>
+          <button class="btn btn-primary wide bio-btn" data-bio>${icon('fingerprint')} افتح بالبصمة</button>
+          <p class="muted small" style="margin-top:14px">لو البصمة ما اشتغلتش، تقدر تفتح برمز أو نمط قفل الموبايل من نفس النافذة.</p>
+        </div>`;
     document.body.appendChild(el);
     document.body.classList.add('locked');
     const finish = () => {
-      pad.off();
+      pad?.off();
       el.remove();
       document.body.classList.remove('locked');
       showing = false;
       resolve();
     };
-    const pad = bindPad(el, async (pin) => {
+    const pad = hasPin ? bindPad(el, async (pin) => {
       const wait = lockoutSeconds();
       if (wait) return pad.msg(`محاولات كثيرة — انتظر ${num(wait)} ثانية`);
       if (await verifyPin(pin)) finish();
       else pad.msg(lockoutSeconds() ? `محاولات كثيرة — انتظر ${num(lockoutSeconds())} ثانية` : 'رمز غير صحيح');
-    });
+    }) : null;
+    let bioBusy = false;
     const tryBio = async () => {
-      if (state.prefs.bioUnlock && (await bioVerify())) finish();
+      if (!useBio || bioBusy) return;
+      bioBusy = true;
+      // بدون PIN نسمح برمز الموبايل كبديل داخل نافذة النظام
+      const ok = await bioVerify('افتح ميزانيتي', { allowDevice: !hasPin });
+      bioBusy = false;
+      if (ok) return finish();
+      const why = bioLastError();
+      const m = el.querySelector('.pin-msg');
+      if (m && why && why !== 'تم الإلغاء') {
+        m.textContent = why;
+        m.classList.add('bad');
+      }
     };
-    if (state.prefs.bioUnlock) setTimeout(tryBio, 250);
+    if (useBio) setTimeout(tryBio, 300);
     el.addEventListener('click', async (e) => {
       if (e.target.closest('[data-bio]')) return tryBio();
       if (e.target.closest('[data-forgot]') && onForgot) {

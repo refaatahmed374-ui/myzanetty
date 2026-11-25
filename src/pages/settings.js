@@ -226,17 +226,6 @@ export default {
           }
           setPrefs({ notifyDue: t.checked });
         })();
-      } else if (t.id === 'b-bio') {
-        (async () => {
-          if (t.checked && !(await bioVerify('تأكيد تفعيل الفتح بالبصمة'))) {
-            t.checked = false;
-            const why = bioLastError();
-            if (why && why !== 'تم الإلغاء') toast(`تعذر تفعيل البصمة: ${why}`, 'warn', 6000);
-            return;
-          }
-          setPrefs({ bioUnlock: t.checked });
-          toast(t.checked ? 'تم تفعيل الفتح بالبصمة' : 'تم إيقاف الفتح بالبصمة');
-        })();
       }
       else if (t.id === 's-cur1' || t.id === 's-cur2') {
         const v = t.value.trim().slice(0, 8);
@@ -257,6 +246,21 @@ export default {
       const act = a.dataset.act;
       if (act === 'edit-cat') categoryForm(state.categories.find((c) => c.id === a.dataset.id));
       else if (act === 'check-update') checkUpdatesInteractive(a);
+      else if (act === 'bio-on' || act === 'bio-off') {
+        const on = act === 'bio-on';
+        a.disabled = true;
+        const st = await bioStatus();
+        const ok = await bioVerify(on ? 'تأكيد تفعيل الدخول بالبصمة' : 'تأكيد إلغاء الدخول بالبصمة', { allowDevice: !on || !st.available });
+        a.disabled = false;
+        if (!ok) {
+          const why = bioLastError();
+          if (why && why !== 'تم الإلغاء') toast(`${on ? 'تعذر التفعيل' : 'تعذر الإلغاء'}: ${why}`, 'warn', 6000);
+          return;
+        }
+        setPrefs({ bioUnlock: on });
+        toast(on ? 'تم تفعيل الدخول بالبصمة 👆' : 'تم إلغاء الدخول بالبصمة');
+        ctx.rerender();
+      }
       else if (act === 'new-acc') accountForm();
       else if (act === 'edit-acc') accountForm(accountsList().find((x) => x.id === a.dataset.id));
       else if (act === 'rate-now') {
@@ -296,7 +300,6 @@ export default {
       } else if (act === 'lock-off') {
         if (await askCurrentPin()) {
           removePin();
-          setPrefs({ bioUnlock: false });
           toast('تم إلغاء القفل');
           ctx.rerender();
         }
@@ -305,13 +308,18 @@ export default {
   },
 
   render(root) {
-    // خيار البصمة يظهر دائماً في تطبيق أندرويد عند تفعيل القفل، مع سبب واضح لو الجهاز قال إنها غير متاحة
-    if (isLockEnabled() && isNative)
+    if (isNative)
       bioStatus().then((st) => {
-        const slot = root.querySelector('#bio-slot');
-        if (!slot) return;
-        slot.innerHTML = `<label class="switch-row"><input type="checkbox" id="b-bio" ${state.prefs.bioUnlock ? 'checked' : ''}><span>${icon('lock')} الفتح بالبصمة أو الوجه</span></label>
-          ${st.available ? '' : `<p class="muted small">⚠️ الموبايل بيقول: ${esc(st.reason)}. جرّب تفعّلها برضه — بعض الأجهزة بتشتغل عادي.</p>`}`;
+        const box = root.querySelector('#bio-card');
+        if (!box) return;
+        const on = !!state.prefs.bioUnlock;
+        box.innerHTML = `
+          <div class="kv"><span>الحالة</span><b class="${on ? 'pos' : 'muted'}">${on ? '✓ مفعّل' : 'غير مفعّل'}</b></div>
+          ${st.available ? '' : `<p class="muted small">⚠️ ${esc(st.reason)}${st.deviceSecure ? ' — هتقدر تفتح برمز أو نمط قفل الموبايل بدلها.' : ''}</p>`}
+          <p class="muted small">لما تفتح التطبيق أو ترجعله بعد دقيقة هيطلب بصمتك، ولو ما اشتغلتش تقدر تستخدم رمز قفل الموبايل.${isLockEnabled() ? ' ولأن رمز PIN مفعّل، تقدر تكتبه برضه.' : ''}</p>
+          ${on
+            ? `<button class="btn btn-ghost danger-text wide" data-act="bio-off">${icon('fingerprint')} إلغاء الدخول بالبصمة</button>`
+            : `<button class="btn btn-primary wide" data-act="bio-on">${icon('fingerprint')} تفعيل الدخول بالبصمة</button>`}`;
       });
     const u = state.user;
     const [sIc, sTxt] = SYNC_TXT[state.sync] || SYNC_TXT.local;
@@ -367,9 +375,12 @@ export default {
           <p class="muted small">${dueItems().length ? `مواعيد هذا الشهر: ${dueItems().slice(0, 4).map((d) => `${esc(d.title)} (يوم ${num(d.day)})`).join('، ')}${dueItems().length > 4 ? '…' : ''}` : 'أضف أقساطاً أو عمليات متكررة لتصلك تذكيرات بمواعيدها.'}</p>`
         : `<p class="muted">الإشعارات متاحة في تطبيق أندرويد. في المتصفح هتلاقي التنبيهات في الصفحة الرئيسية.</p>`)}
 
-      ${card('الأمان', 'shield-lock', isLockEnabled()
-        ? `<p class="muted">قفل التطبيق مفعّل على هذا الجهاز.</p><div class="btn-row"><button class="btn btn-ghost" data-act="lock-change">${icon('lock')} تغيير الرمز</button><button class="btn btn-ghost danger-text" data-act="lock-off">إلغاء القفل</button></div>
-          <div id="bio-slot"></div>`
+      ${card('الدخول بالبصمة', 'fingerprint', isNative
+        ? `<div id="bio-card"><p class="muted small">جارٍ فحص البصمة على الموبايل…</p></div>`
+        : `<p class="muted">الدخول بالبصمة متاح في تطبيق أندرويد. في المتصفح تقدر تستخدم رمز القفل تحت.</p>`)}
+
+      ${card('رمز قفل التطبيق (PIN)', 'shield-lock', isLockEnabled()
+        ? `<p class="muted">قفل التطبيق مفعّل على هذا الجهاز.</p><div class="btn-row"><button class="btn btn-ghost" data-act="lock-change">${icon('lock')} تغيير الرمز</button><button class="btn btn-ghost danger-text" data-act="lock-off">إلغاء القفل</button></div>`
         : `<p class="muted">اطلب رمزاً من 4 أرقام عند فتح التطبيق على هذا الجهاز.</p><button class="btn btn-ghost" data-act="lock-on">${icon('lock')} تفعيل قفل التطبيق</button>`)}
 
       ${card('البيانات والنسخ الاحتياطي', 'database-export', `<div class="btn-grid">

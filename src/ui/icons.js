@@ -57,8 +57,10 @@ import i54 from '@tabler/icons/outline/cash.svg?raw';
 import i55 from '@tabler/icons/outline/bulb.svg?raw';
 import i56 from '@tabler/icons/outline/loader-2.svg?raw';
 import i57 from '@tabler/icons/outline/receipt.svg?raw';
+import i58 from '@tabler/icons/outline/fingerprint.svg?raw';
 
 const RAW = {
+  'fingerprint': i58,
   'layout-dashboard': i0,
   'list-details': i1,
   'plus': i2,

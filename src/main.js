@@ -19,7 +19,7 @@ import { icon } from './ui/icons.js';
 import { $, $$, toast, confirmDialog, closeTopSheet, isNative } from './ui/dom.js';
 import { destroyCharts } from './ui/charts.js';
 import { openTxForm } from './ui/txForm.js';
-import { showLockScreen } from './ui/lockScreen.js';
+import { showLockScreen, appLockActive } from './ui/lockScreen.js';
 import dashboard from './pages/dashboard.js';
 import transactions from './pages/transactions.js';
 import reports from './pages/reports.js';
@@ -291,7 +291,7 @@ let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) hiddenAt = Date.now();
   else {
-    if (isLockEnabled() && hiddenAt && Date.now() - hiddenAt > 60_000) showLockScreen({ onForgot: forgotPin });
+    if (appLockActive() && hiddenAt && Date.now() - hiddenAt > 60_000) showLockScreen({ onForgot: forgotPin });
     if (maintDay && maintDay !== todayISO()) scheduleMaintenance(1000);
   }
 });
@@ -351,7 +351,7 @@ if (lastMode === 'cloud') {
 if (!location.hash) history.replaceState(null, '', '#/');
 route();
 renderSyncChip();
-if (isLockEnabled()) showLockScreen({ onForgot: forgotPin });
+if (appLockActive()) showLockScreen({ onForgot: forgotPin });
 startCloud();
 setupNative();
 setupPWA();
