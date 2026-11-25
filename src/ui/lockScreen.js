@@ -13,24 +13,48 @@ async function bio() {
   return bioPlugin;
 }
 
-export async function bioAvailable() {
+const BIO_ERRORS = {
+  0: 'خطأ غير معروف',
+  1: 'الموبايل لا يدعم البصمة أو الوجه لهذا التطبيق',
+  2: 'البصمة مقفولة مؤقتاً بسبب محاولات كثيرة — افتح الموبايل بالرمز ثم جرّب',
+  3: 'لا توجد بصمة أو وجه مسجّل في إعدادات الموبايل',
+  4: 'البصمة مقفولة مؤقتاً — انتظر قليلاً',
+  10: 'لم يتم التعرف على البصمة',
+  11: 'تم الإلغاء',
+  14: 'لازم يكون للموبايل نفسه رمز قفل أو نمط',
+  15: 'تم الإلغاء من النظام',
+  16: 'تم الإلغاء',
+};
+export const bioErrorText = (code, fallback = '') => BIO_ERRORS[Number(code)] || fallback || BIO_ERRORS[0];
+
+/** حالة البصمة على الجهاز: { native, available, reason } */
+export async function bioStatus() {
+  if (!Capacitor.isNativePlatform()) return { native: false, available: false, reason: 'متاحة في تطبيق أندرويد فقط' };
   try {
     const p = await bio();
-    if (!p) return false;
     const r = await p.isAvailable({ useFallback: false });
-    return !!r?.isAvailable;
-  } catch {
-    return false;
+    return { native: true, available: !!r?.isAvailable, reason: r?.isAvailable ? '' : bioErrorText(r?.errorCode) };
+  } catch (e) {
+    return { native: true, available: false, reason: e?.message || BIO_ERRORS[0] };
   }
 }
 
+export async function bioAvailable() {
+  return (await bioStatus()).available;
+}
+
+let lastBioError = '';
+export const bioLastError = () => lastBioError;
+
 export async function bioVerify(reason = 'افتح ميزانيتي') {
+  lastBioError = '';
   try {
     const p = await bio();
     if (!p) return false;
     await p.verifyIdentity({ reason, title: 'ميزانيتي', subtitle: reason, negativeButtonText: 'استخدم الرمز', maxAttempts: 3 });
     return true;
-  } catch {
+  } catch (e) {
+    lastBioError = bioErrorText(e?.code, e?.message);
     return false;
   }
 }

@@ -10,7 +10,7 @@ import { esc, money, money2, num, pct, parseNum, inputNum, todayISO, dateLabel, 
 import { APP_VERSION } from '../config.js';
 import { card } from '../ui/parts.js';
 import { openSheet, confirmDialog, toast, saveFile, pickFile, options, isNative, $ } from '../ui/dom.js';
-import { askNewPin, askCurrentPin, bioAvailable, bioVerify } from '../ui/lockScreen.js';
+import { askNewPin, askCurrentPin, bioStatus, bioVerify, bioLastError } from '../ui/lockScreen.js';
 import { icon } from '../ui/icons.js';
 
 const PALETTE = ['#0f9d76', '#e0524f', '#d4880f', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b', '#84cc16', '#06b6d4', '#a855f7'];
@@ -229,6 +229,8 @@ export default {
         (async () => {
           if (t.checked && !(await bioVerify('تأكيد تفعيل الفتح بالبصمة'))) {
             t.checked = false;
+            const why = bioLastError();
+            if (why && why !== 'تم الإلغاء') toast(`تعذر تفعيل البصمة: ${why}`, 'warn', 6000);
             return;
           }
           setPrefs({ bioUnlock: t.checked });
@@ -292,6 +294,7 @@ export default {
       } else if (act === 'lock-off') {
         if (await askCurrentPin()) {
           removePin();
+          setPrefs({ bioUnlock: false });
           toast('تم إلغاء القفل');
           ctx.rerender();
         }
@@ -300,11 +303,14 @@ export default {
   },
 
   render(root) {
-    // خيار البصمة يظهر فقط لو الجهاز يدعمها والقفل مفعّل
-    if (isLockEnabled()) bioAvailable().then((ok) => {
-      const slot = root.querySelector('#bio-slot');
-      if (ok && slot) slot.innerHTML = `<label class="switch-row"><input type="checkbox" id="b-bio" ${state.prefs.bioUnlock ? 'checked' : ''}><span>${icon('lock')} الفتح بالبصمة أو الوجه</span></label>`;
-    });
+    // خيار البصمة يظهر دائماً في تطبيق أندرويد عند تفعيل القفل، مع سبب واضح لو الجهاز قال إنها غير متاحة
+    if (isLockEnabled() && isNative)
+      bioStatus().then((st) => {
+        const slot = root.querySelector('#bio-slot');
+        if (!slot) return;
+        slot.innerHTML = `<label class="switch-row"><input type="checkbox" id="b-bio" ${state.prefs.bioUnlock ? 'checked' : ''}><span>${icon('lock')} الفتح بالبصمة أو الوجه</span></label>
+          ${st.available ? '' : `<p class="muted small">⚠️ الموبايل بيقول: ${esc(st.reason)}. جرّب تفعّلها برضه — بعض الأجهزة بتشتغل عادي.</p>`}`;
+      });
     const u = state.user;
     const [sIc, sTxt] = SYNC_TXT[state.sync] || SYNC_TXT.local;
     const account =
