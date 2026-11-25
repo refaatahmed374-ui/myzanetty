@@ -12,6 +12,8 @@ import { maybeUpdateRate } from './core/rates.js';
 import { rescheduleSoon, onNotificationTap } from './core/notify.js';
 import { updateWidgetSoon } from './core/widget.js';
 import { todayISO } from './core/format.js';
+import { autoCheck } from './core/updater.js';
+import { showUpdateBanner } from './ui/updateUI.js';
 import { isLockEnabled, removePin } from './core/lock.js';
 import { icon } from './ui/icons.js';
 import { $, $$, toast, confirmDialog, closeTopSheet, isNative } from './ui/dom.js';
@@ -306,6 +308,8 @@ async function setupNative() {
   App.addListener('appUrlOpen', (e) => handleUrl(e.url));
   App.getLaunchUrl().then((r) => handleUrl(r?.url)).catch(() => {});
   onNotificationTap(() => setTimeout(() => openTxForm(), 400));
+  // فحص التحديثات تلقائياً (مرة كل 6 ساعات) وعرض بانر لو فيه إصدار أحدث
+  setTimeout(() => autoCheck().then((info) => info && showUpdateBanner(info)), 5000);
   App.addListener('backButton', () => {
     if (closeTopSheet()) return;
     const path = location.hash.replace(/^#/, '') || '/';

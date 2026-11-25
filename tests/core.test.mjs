@@ -183,3 +183,12 @@ test('النسخة الاحتياطية تشمل الحسابات والمتكر
   assert.equal(store.state.accounts.length, full.accounts.length);
   assert.ok(backup.version >= 3);
 });
+
+test('مقارنة أرقام الإصدارات للتحديث', async () => {
+  const { isNewer } = await import('../src/core/updater.js');
+  assert.ok(isNewer('2.1.10', '2.1.9'));
+  assert.ok(isNewer('v2.2.0', '2.1.9'));
+  assert.ok(isNewer('3.0', '2.9.9'));
+  assert.ok(!isNewer('2.1.1', '2.1.1'));
+  assert.ok(!isNewer('2.1.0', '2.1.1'));
+});

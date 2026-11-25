@@ -74,10 +74,15 @@ jobs:
           name: myzanetty-apk
           path: ${{ runner.temp }}/myzanetty-*.apk
 
+      - name: ملاحظات الإصدار (من رسالة آخر commit)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git log -1 --pretty=%B | grep -v -i '^Co-Authored-By' > "$RUNNER_TEMP/notes.md"
+          printf '\nحمّل ملف APK من الأسفل على موبايلك وافتحه لتثبيت/تحديث تطبيق ميزانيتي — أو حدّث من داخل التطبيق: الإعدادات ← التحقق من التحديثات.\n' >> "$RUNNER_TEMP/notes.md"
+
       - name: نشر الإصدار (عند وجود tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ runner.temp }}/myzanetty-*.apk
-          body: |
-            حمّل ملف APK من الأسفل على موبايلك وافتحه لتثبيت/تحديث تطبيق ميزانيتي.
+          body_path: ${{ runner.temp }}/notes.md

@@ -12,6 +12,7 @@ import { card } from '../ui/parts.js';
 import { openSheet, confirmDialog, toast, saveFile, pickFile, options, isNative, $ } from '../ui/dom.js';
 import { askNewPin, askCurrentPin, bioStatus, bioVerify, bioLastError } from '../ui/lockScreen.js';
 import { icon } from '../ui/icons.js';
+import { checkUpdatesInteractive } from '../ui/updateUI.js';
 
 const PALETTE = ['#0f9d76', '#e0524f', '#d4880f', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b', '#84cc16', '#06b6d4', '#a855f7'];
 
@@ -255,6 +256,7 @@ export default {
       if (!a) return;
       const act = a.dataset.act;
       if (act === 'edit-cat') categoryForm(state.categories.find((c) => c.id === a.dataset.id));
+      else if (act === 'check-update') checkUpdatesInteractive(a);
       else if (act === 'new-acc') accountForm();
       else if (act === 'edit-acc') accountForm(accountsList().find((x) => x.id === a.dataset.id));
       else if (act === 'rate-now') {
@@ -381,6 +383,7 @@ export default {
 
       ${card('حول التطبيق', 'info-circle', `<div class="kv"><span>الإصدار</span><b>${esc(APP_VERSION)}${isNative ? ' (أندرويد)' : ''}</b></div>
         <div class="kv"><span>عدد العمليات</span><b>${num(state.transactions.length)}</b></div>
+        <button class="btn btn-ghost wide" data-act="check-update" style="margin:10px 0">${icon('refresh')} التحقق من التحديثات</button>
         <p class="muted small">بياناتك خاصة بك: عند تسجيل الدخول تُحفظ في حسابك على Firebase ولا يستطيع أي مستخدم آخر قراءتها، وتعمل بدون إنترنت وتتزامن تلقائياً.</p>`)}
     `;
   },
