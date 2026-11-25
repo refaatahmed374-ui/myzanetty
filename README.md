@@ -3,7 +3,15 @@
 تطبيق لتتبّع الدخل والمصروفات والأهداف المالية بعملتين (افتراضياً ريال سعودي وجنيه مصري). يعمل على الكمبيوتر والموبايل، **وبدون إنترنت**، ويتزامن تلقائياً بين أجهزتك عند تسجيل الدخول بحساب Google.
 
 - 🌐 نسخة الويب: https://refaatahmed374-ui.github.io/myzanetty/
-- 📱 تطبيق أندرويد: ملف APK يُبنى تلقائياً على GitHub (انظر الأسفل)
+- 📱 تطبيق أندرويد: [آخر إصدار (APK)](https://github.com/refaatahmed374-ui/myzanetty/releases/latest) — ويتحدث بعدها من داخل التطبيق
+
+## 📚 التوثيق
+
+| الملف | متى تفتحه |
+|---|---|
+| [🗺️ خريطة المشروع](docs/ARCHITECTURE.md) | لفهم كيف يعمل التطبيق: الملفات، تدفق البيانات، Firebase، أندرويد، الأمان، النشر |
+| [🛠️ دليل الإصلاح](docs/TROUBLESHOOTING.md) | لو حاجة مش شغالة: العَرَض ← السبب ← الحل، واسترجاع البيانات |
+| [🚀 خطوات الإصدار](docs/RELEASING.md) | لنشر نسخة جديدة على الموقع والموبايل |
 
 ## المميزات
 
@@ -28,16 +36,15 @@
 ### الطريقة 1: تثبيت نسخة الويب (الأسرع)
 افتح رابط الموقع في **Chrome** على الموبايل ← القائمة (⋮) ← **تثبيت التطبيق / Add to Home screen**. سيظهر كأيقونة ويعمل بدون إنترنت.
 
-### الطريقة 2: ملف APK
-1. في GitHub افتح تبويب **Actions** ← **Android APK** ← **Run workflow**.
-2. بعد انتهاء البناء (حوالي 5 دقائق) افتح التشغيل ونزّل **myzanetty-apk** من قسم Artifacts.
-   - أو أنشئ إصداراً بـ tag (مثل `v2.0.1`) فيظهر ملف APK في صفحة **Releases** ويسهل تنزيله من الموبايل مباشرة.
-3. افتح ملف APK على الموبايل واسمح بالتثبيت من مصادر غير معروفة.
+### الطريقة 2: ملف APK (تطبيق أندرويد كامل)
+1. افتح من الموبايل: [آخر إصدار](https://github.com/refaatahmed374-ui/myzanetty/releases/latest) ← نزّل ملف `myzanetty-X.Y.Z.apk`.
+2. افتحه واسمح بالتثبيت من مصادر غير معروفة.
+3. **التحديثات بعد كده من داخل التطبيق:** الإعدادات ← حول التطبيق ← **التحقق من التحديثات** (أو البانر اللي بيظهر لوحده).
 
 ### الودجت والإشعارات (أندرويد)
 - **الودجت**: اضغط مطولاً على مكان فاضي في الشاشة الرئيسية ← **الأدوات / Widgets** ← **ميزانيتي** واسحبه للشاشة.
 - **الإشعارات**: من الإعدادات ← الإشعارات والتذكيرات، ووافق على إذن الإشعارات أول مرة.
-- **البصمة**: فعّل قفل التطبيق برمز PIN أولاً، وبعدها هيظهر خيار الفتح بالبصمة.
+- **البصمة**: الإعدادات ← **الدخول بالبصمة** ← تفعيل (لا يحتاج رمز PIN، والبديل رمز قفل الموبايل).
 
 ## إعداد لمرة واحدة
 
@@ -75,45 +82,19 @@ Settings ← Pages ← Source: **GitHub Actions**. بعدها كل push على `
 ```bash
 npm install
 npm run dev        # تشغيل محلي على http://localhost:5173
-npm test           # اختبارات الحسابات والاستيراد/التصدير
+npm test           # اختبارات الحسابات والاستيراد والمتكرر والأقساط
 npm run build      # بناء نسخة الإنتاج في dist/
 npm run icons      # إعادة توليد الأيقونات من public/icon.svg
 npm run android:sync   # بناء + نسخ الملفات لمشروع أندرويد
 ```
 
-لبناء APK محلياً تحتاج Android Studio (أو JDK 21 + Android SDK) ثم: `cd android && ./gradlew assembleDebug`.
+ملف APK يُبنى على GitHub Actions (لا يحتاج Android Studio). لبنائه محلياً تحتاج JDK 21 + Android SDK ثم: `cd android && ./gradlew assembleDebug`.
 
-### هيكل المشروع
-```
-src/
-  config.js            إعدادات Firebase ومعرّف Google لأندرويد
-  main.js              الهيكل والتنقل والمزامنة والقفل
-  styles.css           التصميم (فاتح/داكن، موبايل أولاً)
-  core/
-    store.js           مخزن البيانات + الحفظ المحلي + الاستيراد/التصدير + ترحيل النسخة القديمة
-    cloud.js           Firebase: تسجيل الدخول + Firestore مع دعم العمل بدون إنترنت
-    calc.js            الحسابات: الملخصات، التوقعات، التنبيهات، الميزانيات
-    format.js          تنسيق الأرقام والتواريخ والعملات
-    lock.js            قفل PIN (تجزئة SHA-256 مع ملح)
-  pages/               الرئيسية، العمليات، التقارير، الأهداف، الإعدادات
-  ui/                  النوافذ، الرسوم البيانية، نموذج العملية، شاشة القفل، الأيقونات
-android/               مشروع أندرويد (Capacitor)
-tests/                 اختبارات node:test
-```
-
-### بنية البيانات في Firestore
-```
-users/{uid}/transactions/{id}   {date: 'YYYY-MM-DD', type, catId, desc, amount, rate, amount2, note}
-users/{uid}/goals/{id}
-users/{uid}/categories/{id}     {name, type, color, budget}
-users/{uid}/accounts/{id}       {name, kind, cur, opening, color}
-users/{uid}/recurring/{id}      {desc, catId, accountId, fixedIn, amount, day, start, end, active, lastApplied}
-users/{uid}/debts/{id}          {name, total, installment, fixedIn, initialPaid, dueDay, catId, accountId}
-users/{uid}/meta/settings       {cur1, cur2, code1, code2, rate, autoRate, expenseLimit, minSaving}
-```
+الهيكل الكامل للملفات وبنية البيانات في Firestore وكيف تتصل الأجزاء ببعض: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## الخصوصية
 - لا توجد أي بيانات شخصية داخل الكود.
 - عند تسجيل الدخول تُحفظ البيانات في حسابك على Firebase، وقواعد Firestore تمنع أي مستخدم آخر من قراءتها.
 - مفتاح Firebase الظاهر في الكود عادي لتطبيقات الويب ولا يمنح أي صلاحية بمفرده.
 - عند تسجيل الخروج تُمسح نسخة البيانات المخزنة على الجهاز.
+- المستودع عام عن قصد (GitHub Pages مجاني + التحديث من داخل التطبيق يقرأ صفحة الإصدارات العامة)، ولا يحتوي أي بيانات أو أسرار — التفاصيل في [خريطة المشروع](docs/ARCHITECTURE.md#8-الأمان-والخصوصية).
